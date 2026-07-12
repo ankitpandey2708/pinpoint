@@ -108,8 +108,12 @@
     });
     var jobActive = job && !TERMINAL[job.status];
     var jobDone = job && job.status === 'pr-opened';
+    var jobFailed = job && job.status === 'failed';
     btn.disabled = !canStart || jobActive || jobDone;
+    // Jobs start automatically on submission; this button is the retry path when
+    // a run failed, and a manual fallback when nothing auto-started.
     if (!canStart) btn.textContent = 'No source mapped';
+    else if (jobFailed) btn.textContent = 'Retry Fix PR';
     btn.addEventListener('click', function () {
       btn.disabled = true;
       btn.textContent = 'Starting…';

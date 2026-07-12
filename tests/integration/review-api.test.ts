@@ -3,10 +3,10 @@ import request from 'supertest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createApp } from '../../src/server/app';
+import { createApp, type OrchestratorLike } from '../../src/server/app';
 import { createRepositories, type Repositories } from '../../src/storage/repositories';
 import { PreviewRegistry } from '../../src/server/preview-registry';
-import type { Project, SourceMapping } from '../../src/domain/types';
+import type { Project, SourceMapping, AgentJob } from '../../src/domain/types';
 import type { Express } from 'express';
 
 let dataDir: string;
@@ -135,5 +135,33 @@ describe('POST /api/projects/:projectId/reviews', () => {
     expect(review.baseCommit).toBe('c0ffee');
     expect(review.annotations[0].mapping.sourceFile).toBe('index.html');
     expect(review.annotations[0].mapping.component).not.toBe('Pwned');
+  });
+
+  it('auto-starts the coding agent on submission when an orchestrator is wired', async () => {
+    const started: string[] = [];
+    const orchestrator: OrchestratorLike = {
+      async startJobForReview(reviewId: string): Promise<AgentJob> {
+        started.push(reviewId);
+        const now = new Date().toISOString();
+        return repositories.jobs.insert({
+          id: 'job_auto',
+          reviewId,
+          projectId: 'proj_1',
+          status: 'queued',
+          attempts: 1,
+          createdAt: now,
+          updatedAt: now,
+        });
+      },
+      async getJob(jobId: string): Promise<AgentJob | undefined> {
+        return repositories.jobs.get(jobId);
+      },
+    };
+    const autoApp = createApp({ repositories, previews, devToken: 'devtok', orchestrator });
+
+    const res = await request(autoApp).post('/api/projects/proj_1/reviews').send(validBody());
+    expect(res.status).toBe(201);
+    expect(res.body.jobId).toBe('job_auto');
+    expect(started).toEqual([res.body.id]);
   });
 });

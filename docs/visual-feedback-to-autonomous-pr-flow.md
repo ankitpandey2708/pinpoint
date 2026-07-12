@@ -43,9 +43,7 @@ Client clicks elements and writes comments
         ↓
 Client submits the complete review
         ↓
-Developer inspects feedback in a dashboard
-        ↓
-Developer clicks “Generate Fix PR”
+Submission automatically starts the coding job
         ↓
 Coding agent edits an isolated Git worktree
         ↓
@@ -53,7 +51,9 @@ Tests and build run
         ↓
 Draft GitHub pull request is created
         ↓
-Developer reviews and decides whether to merge
+Developer inspects the feedback and job in a dashboard
+        ↓
+Developer reviews the draft PR and decides whether to merge
 ```
 
 ## 1. Developer Starts a Review

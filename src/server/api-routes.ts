@@ -144,7 +144,24 @@ async function submitReview(deps: ApiDeps, req: Request, res: Response): Promise
   };
 
   await deps.repositories.reviews.insert(review);
-  res.status(201).json({ id: review.id });
+
+  // Autonomous flow: a submission immediately starts the coding agent. The draft
+  // pull request it produces is the human review gate (the system still never
+  // auto-merges and never force-pushes). Only fires when an orchestrator is wired
+  // and at least one annotation resolved to a source location. A failure to start
+  // never fails the client submission — the review is saved and the developer can
+  // retry from the dashboard.
+  let jobId: string | undefined;
+  const hasResolved = annotations.some((a) => a.mapping.confidence !== 'unresolved');
+  if (deps.orchestrator && hasResolved) {
+    try {
+      const job = await deps.orchestrator.startJobForReview(review.id);
+      jobId = job.id;
+    } catch {
+      /* review persisted regardless; dashboard retry remains available */
+    }
+  }
+  res.status(201).json({ id: review.id, jobId });
 }
 
 /** Compact review summary for the dashboard list view. */
