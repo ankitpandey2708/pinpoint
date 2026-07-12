@@ -28,6 +28,20 @@ async function run(base: string[], args: string[], cwd: string, env?: NodeJS.Pro
   return runProcess(base[0], [...base.slice(1), ...args], { cwd, env, timeoutMs: 120_000 });
 }
 
+/**
+ * Preflight: confirm the GitHub CLI is installed and authenticated so the draft
+ * PR step won't surprise-fail after an agent has already run. `gh auth status`
+ * exits nonzero when `gh` is missing or the user is signed out.
+ */
+export async function checkGitHubAuth(gh: string[] = ['gh']): Promise<void> {
+  const res = await runProcess(gh[0], [...gh.slice(1), 'auth', 'status'], { timeoutMs: 15_000 });
+  if (res.code !== 0) {
+    throw new Error(
+      'GitHub CLI authentication is unavailable. Install the GitHub CLI and run `gh auth login` before starting a review.',
+    );
+  }
+}
+
 /** Extract `{ url, number }` from gh's output (the PR URL). */
 function parsePrUrl(output: string): { url: string; number: number } | undefined {
   const match = /(https:\/\/github\.com\/[^\s]+\/pull\/(\d+))/.exec(output);

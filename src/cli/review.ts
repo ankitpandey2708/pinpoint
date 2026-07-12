@@ -10,6 +10,7 @@ import { createPreviewWorkspace, type PreviewWorkspace, type CreatePreviewOption
 import { startPreview, type PreviewRuntime } from '../preview/runtime';
 import { inspectRepository } from '../repository/inspect';
 import { ClaudeAgent } from '../agents/claude';
+import { checkGitHubAuth } from '../github/client';
 import {
   Orchestrator,
   realWorktreeAdapter,
@@ -40,6 +41,8 @@ export interface ReviewServices {
   startPreview: (workspace: PreviewWorkspace, project: Project) => Promise<PreviewRuntime>;
   listen: (app: Express, host: string, port: number) => Promise<ServerHandle>;
   makeAgent: () => CodingAgent;
+  /** Preflight the GitHub CLI auth. Omitted in tests; run for repos with a remote. */
+  checkGitHubAuth?: () => Promise<void>;
   dataDir: string;
   workRoot: string;
   worktreesRoot: string;
@@ -72,6 +75,13 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
   }
 
   const info = await services.inspect(opts.repo);
+
+  // Fail fast if we can't ultimately open a PR: when the repo has a GitHub
+  // remote, the draft-PR step needs an authenticated GitHub CLI. Checking now
+  // avoids running an agent only to fail at push time.
+  if (info.githubRepo && services.checkGitHubAuth) {
+    await services.checkGitHubAuth();
+  }
 
   const host = opts.host ?? '127.0.0.1';
   const port = opts.port ?? 3000;

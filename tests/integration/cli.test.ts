@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { buildProgram, startReview, type ReviewServices } from '../../src/cli/review';
+import { join, relative } from 'node:path';
+import { buildProgram, realServices, startReview, type ReviewServices } from '../../src/cli/review';
 import type { CodingAgent } from '../../src/agents/types';
 import type { RepositoryInfo } from '../../src/domain/types';
 
@@ -74,6 +74,12 @@ afterEach(async () => {
 });
 
 describe('pinpoint review CLI', () => {
+  it('keeps preview and worktree roots outside the repository being reviewed', () => {
+    const real = realServices(root);
+    expect(relative(root, real.workRoot).startsWith('..')).toBe(true);
+    expect(relative(root, real.worktreesRoot).startsWith('..')).toBe(true);
+  });
+
   it('exposes help describing the review command and its options', () => {
     const help = buildProgram(async () => {}).helpInformation();
     expect(help).toMatch(/review/);
