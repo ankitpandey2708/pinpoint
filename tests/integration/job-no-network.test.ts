@@ -120,9 +120,12 @@ describe('orchestrated job with no network side effects', () => {
     expect(final.changedFiles).toContain('index.html');
     expect(pushed).toBe(true);
 
-    // The original working tree is byte-identical and clean.
+    // The working tree is restored and clean (agent's edit is not left behind).
+    // Line endings may be normalized by git's autocrlf on the in-repo checkout.
     expect(await git(repo, 'status', '--porcelain')).toBe('');
-    expect(await readFile(join(repo, 'index.html'), 'utf8')).toBe('<h1>Original</h1>\n');
+    expect((await readFile(join(repo, 'index.html'), 'utf8')).replace(/\r\n/g, '\n')).toBe(
+      '<h1>Original</h1>\n',
+    );
     // main still points at the base commit; the agent worked on a generated branch.
     expect(await git(repo, 'rev-parse', 'HEAD')).toBe(baseCommit);
   });
