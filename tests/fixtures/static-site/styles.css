@@ -1,0 +1,21 @@
+:root {
+  --accent: #6d5efc;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+}
+
+.hero {
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.cta {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+}

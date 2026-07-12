@@ -1,3 +1,16 @@
-
 toss/
 .vercel
+
+# Dependencies / build output
+node_modules/
+dist/
+
+# Runtime data, logs, temp previews and worktrees (never tracked)
+data/*.json
+data/logs/
+.pinpoint/
+*.tmp-*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
