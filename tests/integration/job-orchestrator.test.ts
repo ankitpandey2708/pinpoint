@@ -106,12 +106,15 @@ function buildDeps(knobs: Knobs = {}): OrchestratorDeps {
       restoreBranch: async (_root, branch) => {
         restored.push(branch);
       },
+      resetHard: async () => {},
     },
     verifier: {
+      // First call is the post-agent verify; a second call (only on failure) is
+      // the attribution baseline.
       verifyRepository: async () => {
         steps.push('verify');
         verifyCalls += 1;
-        const ok = verifyCalls === 1 ? baselineOk : verifyOk;
+        const ok = verifyCalls === 1 ? verifyOk : baselineOk;
         return { ok, checks: [] } satisfies VerificationResult;
       },
     },
@@ -154,8 +157,9 @@ describe('Orchestrator', () => {
     expect(final.prNumber).toBe(7);
     expect(final.changedFiles).toEqual(['index.html']);
     expect(final.branch).toContain('pinpoint/review-');
-    expect(final.baselineVerification?.ok).toBe(true);
-    expect(steps).toEqual(['verify', 'agent', 'verify']);
+    // Happy path runs the gates once (post-agent) — no pre-agent baseline.
+    expect(final.baselineVerification).toBeUndefined();
+    expect(steps).toEqual(['agent', 'verify']);
 
     expect(statuses).toEqual([
       'queued',
