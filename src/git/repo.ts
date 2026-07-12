@@ -20,11 +20,6 @@ export function generateBranchName(seed?: string): string {
   return `pinpoint/review-${suffix}-${randomUUID().slice(0, 6)}`;
 }
 
-/** The branch currently checked out in the repository. */
-export async function currentBranch(repoRoot: string): Promise<string> {
-  return gitOrThrow(repoRoot, ['rev-parse', '--abbrev-ref', 'HEAD']);
-}
-
 /**
  * Create and check out the generated review branch from an exact base commit,
  * directly in the repository (no separate worktree). The tree must be clean

@@ -100,7 +100,6 @@ function buildDeps(knobs: Knobs = {}): OrchestratorDeps {
     agent,
     repo: {
       generateBranchName: (seed) => `pinpoint/review-${seed}`,
-      currentBranch: async () => 'main',
       createReviewBranch: async () => {},
       changedFiles: async () => changed,
       commitAll: async () => ({ committed: changed.length > 0, sha: 'abc1234' }),
