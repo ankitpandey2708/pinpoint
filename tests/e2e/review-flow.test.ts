@@ -93,19 +93,15 @@ describe('review overlay controller', () => {
     const second = Pinpoint.init(makeConfig());
     expect(second.annotations()).toHaveLength(1);
 
-    // Reviewer name is required before submitting.
-    const invalid = await second.submit();
-    expect(invalid.ok).toBe(false);
-    expect(invalid.error).toMatch(/reviewer/i);
-    expect(calls).toHaveLength(0);
-
-    second.setReviewer('Alice');
+    // Reviewer name is optional: submitting without one still succeeds and the
+    // client sends "Anonymous".
     const ok = await second.submit();
     expect(ok.ok).toBe(true);
     expect(ok.id).toBe('rev_1');
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe('/api/projects/proj_1/reviews');
     expect(calls[0].options?.method).toBe('POST');
+    expect(JSON.parse(String(calls[0].options?.body)).reviewerName).toBe('Anonymous');
 
     // Draft cleared after success.
     expect(localStorage.getItem(second.draftKey)).toBeNull();
