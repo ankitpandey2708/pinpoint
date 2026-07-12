@@ -1,5 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
+import { readFile } from 'node:fs/promises';
 import { entityId } from '../lib/ids';
+import { redactSecrets } from '../lib/process';
 import type { Repositories } from '../storage/repositories';
 import type { PreviewRegistry } from './preview-registry';
 import type { Annotation, ClientAnnotation, SubmittedReview, AgentJob } from '../domain/types';
@@ -204,6 +206,29 @@ async function getJob(deps: ApiDeps, req: Request, res: Response): Promise<void>
     return;
   }
   res.json(job);
+}
+
+/**
+ * Return the sanitized agent log for a job. Only the server-recorded log path is
+ * read (never a client-supplied path); contents are re-redacted defensively even
+ * though they were redacted on write. Missing/absent logs yield an empty string.
+ */
+async function getJobLog(deps: ApiDeps, req: Request, res: Response): Promise<void> {
+  const job = await deps.repositories.jobs.get(req.params.id);
+  if (!job) {
+    res.status(404).json({ error: 'unknown job' });
+    return;
+  }
+  if (!job.logPath) {
+    res.json({ log: '' });
+    return;
+  }
+  try {
+    const log = await readFile(job.logPath, 'utf8');
+    res.json({ log: redactSecrets(log) });
+  } catch {
+    res.json({ log: '' });
+  }
 }
 
 /**

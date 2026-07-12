@@ -163,6 +163,7 @@ export function realServices(dataRoot: string): ReviewServices {
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
     listen: httpListen,
     makeAgent: () => new ClaudeAgent(),
+    checkGitHubAuth: () => checkGitHubAuth(),
     dataDir: `${dataRoot}/data`,
     workRoot: `${dataRoot}/.pinpoint/previews`,
     worktreesRoot: `${dataRoot}/.pinpoint/worktrees`,
