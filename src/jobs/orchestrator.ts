@@ -76,6 +76,11 @@ function isActive(job: AgentJob): boolean {
 
 /** Build a RepositoryInfo view from a project (used for verification gates). */
 function infoForProject(project: Project, worktreePath: string, baseCommit: string): RepositoryInfo {
+  // The job runs in the developer's actual repository, which already has its
+  // dependencies installed. Skip the install gate (e.g. `npm ci`) — running it
+  // here would wipe and reinstall the developer's node_modules unnecessarily.
+  const commands = { ...project.commands };
+  delete commands.install;
   return {
     root: worktreePath,
     clean: true,
@@ -85,7 +90,7 @@ function infoForProject(project: Project, worktreePath: string, baseCommit: stri
     remoteUrl: project.remoteUrl,
     framework: project.framework,
     htmlEntry: project.htmlEntry,
-    commands: project.commands,
+    commands,
   };
 }
 

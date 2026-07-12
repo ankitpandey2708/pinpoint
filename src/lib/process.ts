@@ -74,6 +74,43 @@ function resolveExecutable(command: string): { file: string; isBatch: boolean } 
   return { file: command, isBatch: true };
 }
 
+/**
+ * Quote a single token for a cmd.exe command line: wrap in double quotes when it
+ * contains whitespace or a cmd metacharacter, doubling embedded quotes. This
+ * prevents word-splitting on paths with spaces (e.g. C:\Program Files\...) and
+ * neutralizes injection via client-influenced values (e.g. a reviewer name).
+ */
+function quoteForCmd(token: string): string {
+  if (token !== '' && !/[\s"^&|<>()%!]/.test(token)) return token;
+  return '"' + token.replace(/"/g, '""') + '"';
+}
+
+export interface Spawnable {
+  file: string;
+  args: string[];
+  windowsVerbatim: boolean;
+}
+
+/**
+ * Decide how to spawn a command. Real binaries (git.exe, gh.exe, node.exe) are
+ * spawned directly so Node applies correct CreateProcess quoting. Windows batch
+ * shims (npm.cmd, claude.cmd) are run via `cmd.exe /d /s /c "<line>"` where we
+ * build and quote the whole line ourselves — never Node's unsafe `shell: true`,
+ * which leaves both the executable path and arguments unquoted (DEP0190).
+ */
+export function buildSpawnable(command: string, args: string[]): Spawnable {
+  const { file, isBatch } = resolveExecutable(command);
+  if (process.platform === 'win32' && isBatch) {
+    const line = [file, ...args].map(quoteForCmd).join(' ');
+    return {
+      file: process.env.ComSpec ?? 'cmd.exe',
+      args: ['/d', '/s', '/c', '"' + line + '"'],
+      windowsVerbatim: true,
+    };
+  }
+  return { file, args, windowsVerbatim: false };
+}
+
 /** Terminate a process tree; on Windows uses taskkill for reliable cleanup. */
 export function killProcessTree(pid: number | undefined, child?: ChildProcess): void {
   if (pid === undefined) return;
@@ -98,12 +135,12 @@ export function spawnCommand(
   args: string[],
   options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
 ): ChildProcess {
-  const { file, isBatch } = resolveExecutable(command);
-  return spawn(file, args, {
+  const spawnable = buildSpawnable(command, args);
+  return spawn(spawnable.file, spawnable.args, {
     cwd: options.cwd,
     env: options.env ?? process.env,
-    shell: isBatch,
     windowsHide: true,
+    windowsVerbatimArguments: spawnable.windowsVerbatim,
   });
 }
 
@@ -130,13 +167,13 @@ export function runProcess(
 
   return new Promise<ProcessResult>((resolve) => {
     const started = Date.now();
-    const { file, isBatch } = resolveExecutable(command);
+    const spawnable = buildSpawnable(command, args);
 
-    const child = spawn(file, args, {
+    const child = spawn(spawnable.file, spawnable.args, {
       cwd,
       env: env ?? process.env,
-      shell: isBatch,
       windowsHide: true,
+      windowsVerbatimArguments: spawnable.windowsVerbatim,
     });
 
     let stdout = '';
