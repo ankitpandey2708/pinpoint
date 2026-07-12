@@ -340,29 +340,16 @@ The developer reviews the draft on GitHub and chooses whether to:
 - modify the branch manually;
 - close the pull request.
 
-## Preview Modes
+## Preview Mode
 
-### Repository Build Mode
+The tool receives a local GitHub repository, instruments its source in a
+temporary preview copy, and builds or serves it. This repository-build mode
+provides the most reliable source-file mapping and is the only supported preview
+mode in the first version.
 
-This is the preferred mode.
-
-The tool receives a local GitHub repository, instruments its source in a temporary preview copy, and builds or serves it. This mode provides the most reliable source-file mapping.
-
-### Remote Public URL Mode
-
-The tool can proxy a public landing-page URL while also receiving the corresponding local GitHub repository.
-
-Because the already-deployed page does not contain build-time source metadata, source matching is best effort. The tool uses:
-
-- visible text;
-- IDs and class names;
-- DOM selector;
-- route;
-- nearby content;
-- repository search;
-- coding-agent reasoning.
-
-Authenticated applications and websites that block proxying are outside the first version's reliable support boundary.
+> A second "remote public URL" mode — proxying an already-deployed page while
+> mapping feedback against the local repository — is deferred to a later version.
+> See [`../TODO.md`](../TODO.md).
 
 ## Local JSON Storage
 

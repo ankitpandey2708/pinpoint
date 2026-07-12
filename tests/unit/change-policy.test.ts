@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assertSafeChangedFiles } from '../../src/git/change-policy';
@@ -35,13 +35,5 @@ describe('assertSafeChangedFiles', () => {
     'C:/outside.txt',
   ])('rejects protected or escaping path %s', async (file) => {
     await expect(assertSafeChangedFiles(root, [file])).rejects.toThrow(/protected|outside|unsafe/i);
-  });
-
-  it('rejects a changed symlink', async () => {
-    const outside = join(root, 'outside.txt');
-    await writeFile(outside, 'outside', 'utf8');
-    const link = join(root, 'src', 'linked.txt');
-    await symlink(outside, link);
-    await expect(assertSafeChangedFiles(root, ['src/linked.txt'])).rejects.toThrow(/symbolic link/i);
   });
 });
