@@ -16,6 +16,20 @@ The system handles the technical work behind the scenes:
 
 The system never automatically merges a pull request.
 
+## Repository Integration Constraints
+
+The application is implemented directly in the parent `pinpoint` repository on
+the `main` branch. Existing parent files are preserved, including the current
+`index.html` landing page, `README.md`, and existing documentation. The ignored
+`toss/` repository is reference material only; its useful commenting, serving,
+and UI ideas may be adapted, but it is not copied wholesale or modified.
+
+The completed implementation may be committed and pushed directly to
+`origin/main` with the developer's explicit authorization. The live end-to-end
+test uses Pinpoint itself as the target repository: the existing landing page is
+reviewed, an isolated `pinpoint/review-*` branch receives the agent-generated
+fix, and that branch is submitted as a draft pull request against `main`.
+
 ## Simple End-to-End Flow
 
 ```text
