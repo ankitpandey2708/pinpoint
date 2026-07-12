@@ -13,7 +13,7 @@ import {
 import { verifyRepository, type VerifyOptions } from '../git/verify';
 import { assertSafeChangedFiles } from '../git/change-policy';
 import { createDraftPullRequest, type DraftPrInput } from '../github/client';
-import type { CodingAgent } from '../agents/types';
+import type { AgentResult, CodingAgent } from '../agents/types';
 import type { Repositories } from '../storage/repositories';
 import type {
   AgentJob,
@@ -127,8 +127,36 @@ function prBody(review: SubmittedReview, changed: string[], verification: Verifi
   return lines.join('\n');
 }
 
+/** Hard bound on a single agent run so a hung/looping agent can't stall forever. */
+const AGENT_TIMEOUT_MS = 240_000;
+
+/** Turn a failed agent result into a concise, useful reason for the dashboard/logs. */
+function agentFailureDetail(result: AgentResult): string {
+  if (result.timedOut) return 'the coding agent timed out';
+  if (result.aborted) return 'the coding agent was cancelled';
+  const events = result.events ?? [];
+  const rateLimited = events.some(
+    (e) => e.type === 'rate_limit_event' || (typeof e.subtype === 'string' && e.subtype.includes('rate')),
+  );
+  const resultEvent = [...events].reverse().find((e) => e.type === 'result') as
+    | { is_error?: boolean; subtype?: string; result?: unknown }
+    | undefined;
+  if (resultEvent?.is_error) {
+    const r = resultEvent.result;
+    return typeof r === 'string' && r.trim()
+      ? r.trim().slice(0, 300)
+      : resultEvent.subtype ?? 'the coding agent reported an error';
+  }
+  if (!resultEvent) {
+    return rateLimited
+      ? 'Claude hit API rate limits before finishing — wait a bit and retry'
+      : 'the coding agent ended without completing (no result event)';
+  }
+  return 'the coding agent did not complete successfully';
+}
+
 /** A job failure carrying a human-readable reason for the dashboard. */
-class JobError extends Error {}
+class JobError extends Error { }
 
 /**
  * Persisted job state machine:
@@ -140,7 +168,7 @@ class JobError extends Error {}
 export class Orchestrator {
   private readonly running = new Map<string, Promise<void>>();
 
-  constructor(private readonly deps: OrchestratorDeps) {}
+  constructor(private readonly deps: OrchestratorDeps) { }
 
   async getJob(jobId: string): Promise<AgentJob | undefined> {
     return this.deps.repositories.jobs.get(jobId);
@@ -253,21 +281,13 @@ export class Orchestrator {
       const prompt = buildAgentPrompt({ review, verificationCommands: verificationCommands(project) });
       const logPath = this.deps.logsDir ? join(this.deps.logsDir, `${jobId}.log`) : undefined;
       if (this.deps.logsDir) await mkdir(this.deps.logsDir, { recursive: true });
-      const agentResult = await this.deps.agent.run({ prompt, cwd: project.repoPath }, { logPath });
+      const agentResult = await this.deps.agent.run(
+        { prompt, cwd: project.repoPath },
+        { logPath, timeoutMs: AGENT_TIMEOUT_MS },
+      );
       await this.deps.repositories.jobs.update(jobId, { logPath, updatedAt: new Date().toISOString() });
       if (!agentResult.ok) {
-        const detail = (agentResult.log || '')
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean)
-          .slice(-3)
-          .join(' | ')
-          .slice(-400);
-        throw new JobError(
-          (agentResult.timedOut
-            ? 'the coding agent timed out'
-            : 'the coding agent did not complete successfully') + (detail ? `: ${detail}` : ''),
-        );
+        throw new JobError(agentFailureDetail(agentResult));
       }
 
       // 3. Require real changes before doing any further work.

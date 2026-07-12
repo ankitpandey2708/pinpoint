@@ -611,13 +611,14 @@
     /* Problem — editorial numbered rows */
     .problem-list {
       display: grid;
-      gap: 0;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 60px;
     }
 
     .problem-row {
       display: grid;
-      grid-template-columns: 96px 1fr;
-      gap: 30px;
+      grid-template-columns: 40px 1fr;
+      gap: 20px;
       padding: 30px 0;
       border-top: 1px solid var(--line);
       align-items: baseline;
@@ -630,10 +631,9 @@
     .problem-row .num {
       font-family: var(--serif);
       font-weight: 900;
-      font-size: 56px;
+      font-size: 28px;
       line-height: 0.8;
-      color: transparent;
-      -webkit-text-stroke: 1.4px var(--accent);
+      color: var(--accent);
       letter-spacing: -0.02em;
     }
 
@@ -649,12 +649,11 @@
       margin: 0;
       color: var(--ink-soft-1);
       font-size: 16px;
-      max-width: 620px;
+      max-width: 420px;
     }
 
     .problem-row:hover .num {
       color: var(--accent);
-      -webkit-text-stroke: 0;
       transition: color .2s ease;
     }
 
@@ -1032,17 +1031,18 @@
       }
 
       .steps,
-      .audiences {
+      .audiences,
+      .problem-list {
         grid-template-columns: 1fr;
       }
 
       .problem-row {
-        grid-template-columns: 62px 1fr;
+        grid-template-columns: 32px 1fr;
         gap: 18px;
       }
 
       .problem-row .num {
-        font-size: 40px;
+        font-size: 22px;
       }
 
       .note,
@@ -1151,29 +1151,34 @@
       <div class="section-head">
         <span class="kicker"><span class="sec">§ 01</span> · The problem</span>
         <h2>Feedback shouldn’t live somewhere else</h2>
-        <p>Today it’s a screenshot in Slack, a vague email, or a comment buried in a doc — disconnected from the page
-          it’s actually about.</p>
       </div>
       <div class="problem-list">
         <div class="problem-row">
-          <div class="num">01</div>
+          <div class="num">•</div>
           <div class="body">
             <h3>Scattered feedback</h3>
             <p>By the time a freelancer reads it, they’re guessing what “that” refers to.</p>
           </div>
         </div>
         <div class="problem-row">
-          <div class="num">02</div>
+          <div class="num">•</div>
           <div class="body">
             <h3>Slow back-and-forth</h3>
             <p>Ambiguous notes mean another round of “wait, which section did you mean?”</p>
           </div>
         </div>
         <div class="problem-row">
-          <div class="num">03</div>
+          <div class="num">•</div>
           <div class="body">
             <h3>Small fixes, big context-switch</h3>
             <p>Even clear feedback still costs a full context-switch to turn into an actual change.</p>
+          </div>
+        </div>
+        <div class="problem-row">
+          <div class="num">•</div>
+          <div class="body">
+            <h3>No single source of truth</h3>
+            <p>Feedback lives across five different tools, so nobody’s sure which version is current.</p>
           </div>
         </div>
       </div>
