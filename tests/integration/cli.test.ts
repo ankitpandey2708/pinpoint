@@ -88,7 +88,7 @@ describe('pinpoint review CLI', () => {
       .helpInformation();
     expect(reviewHelp).toMatch(/--host/);
     expect(reviewHelp).toMatch(/--port/);
-    expect(reviewHelp).toMatch(/--url/);
+    expect(reviewHelp).not.toMatch(/--url/);
   });
 
   it('rejects a repository path that does not exist', async () => {

@@ -80,8 +80,6 @@ describe('ClaudeAgent', () => {
       'Grep',
       'Edit',
       'Write',
-      'Bash(npm test*)',
-      'Bash(npm run *)',
     ]);
     expect(await readFile(stdinFile, 'utf8')).toBe('FIX THINGS & echo INJECTION');
 
