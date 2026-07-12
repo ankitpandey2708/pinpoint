@@ -99,6 +99,12 @@ export class ClaudeAgent implements CodingAgent {
     // Flush any trailing partial line.
     if (buffer.trim()) handleLine(buffer);
 
+    // Persist stderr to the job log too — the CLI reports startup/flag/auth
+    // errors there, and onStdout only captured stdout lines.
+    if (options.logPath && result.stderr.trim()) {
+      await appendFile(options.logPath, '\n[stderr]\n' + result.stderr + '\n', 'utf8').catch(() => {});
+    }
+
     const log = result.stdout + (result.stderr ? '\n' + result.stderr : '');
     const ok = result.code === 0 && !result.timedOut && !result.aborted;
 
