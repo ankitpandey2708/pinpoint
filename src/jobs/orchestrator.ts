@@ -17,7 +17,6 @@ import type { CodingAgent } from '../agents/types';
 import type { Repositories } from '../storage/repositories';
 import type {
   AgentJob,
-  Command,
   JobStatus,
   Project,
   RepositoryInfo,
@@ -76,11 +75,14 @@ function isActive(job: AgentJob): boolean {
 
 /** Build a RepositoryInfo view from a project (used for verification gates). */
 function infoForProject(project: Project, worktreePath: string, baseCommit: string): RepositoryInfo {
-  // The job runs in the developer's actual repository, which already has its
-  // dependencies installed. Skip the install gate (e.g. `npm ci`) — running it
-  // here would wipe and reinstall the developer's node_modules unnecessarily.
-  const commands = { ...project.commands };
-  delete commands.install;
+  // Verification runs ONLY the build gate (speed choice): it's the cheap, high
+  // signal "does it still build/compile" check. The slower test/lint/typecheck
+  // gates are dropped — the draft PR is human-reviewed (and GitHub CI can run
+  // the full suite). Install is skipped too: the developer's repo already has
+  // node_modules, and `npm ci` would wipe and reinstall it.
+  const commands: RepositoryInfo['commands'] = project.commands.build
+    ? { build: project.commands.build }
+    : {};
   return {
     root: worktreePath,
     clean: true,
@@ -94,15 +96,10 @@ function infoForProject(project: Project, worktreePath: string, baseCommit: stri
   };
 }
 
-/** Verification commands (arg arrays) surfaced to the agent, in run order. */
+/** Verification commands (arg arrays) surfaced to the agent — build only. */
 function verificationCommands(project: Project): string[][] {
-  const order: (Command | undefined)[] = [
-    project.commands.test,
-    project.commands.lint,
-    project.commands.typecheck,
-    project.commands.build,
-  ];
-  return order.filter((c): c is Command => Boolean(c)).map((c) => [c.command, ...c.args]);
+  const build = project.commands.build;
+  return build ? [[build.command, ...build.args]] : [];
 }
 
 function prBody(review: SubmittedReview, changed: string[], verification: VerificationResult): string {
