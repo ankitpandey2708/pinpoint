@@ -13,10 +13,16 @@ export type { OrchestratorLike };
 export interface ServerDeps {
   repositories: Repositories;
   previews: PreviewRegistry;
-  /** Token required for developer dashboard mutation routes. */
+  /** Token required for developer dashboard routes. */
   devToken: string;
   /** Present when the CLI wires a live orchestrator; absent in some tests. */
   orchestrator?: OrchestratorLike;
+}
+
+/** True only for direct loopback clients. IPv4-mapped IPv6 is common on Windows. */
+export function isLoopbackAddress(address: string | undefined): boolean {
+  if (!address) return false;
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
 }
 
 /** Compose the full Pinpoint Express application. */
@@ -30,16 +36,23 @@ export function createApp(deps: ServerDeps): Express {
   // Pinpoint-owned browser assets (overlay + dashboard scripts/styles).
   app.use(PINPOINT_BASE, express.static(publicDir()));
 
-  // JSON APIs (submission + dashboard + jobs).
+  // JSON APIs (submission + developer-token-protected dashboard/jobs).
   app.use('/api', express.json({ limit: '2mb' }), createApiRouter(deps));
 
   // Instrumented review preview (static serve or framework proxy).
   app.use('/review', createReviewMiddleware(deps.previews));
 
-  // Developer dashboard shell. The per-server developer token is injected here
-  // (loopback-served page only) so mutation routes can be authorized; it is
-  // never present in review pages sent to clients.
-  app.get('/dashboard', (_req, res) => {
+  // Developer dashboard shell. Require both a direct loopback connection and
+  // the unguessable URL printed by the CLI. Review clients never receive it.
+  app.get('/dashboard', (req, res) => {
+    if (!isLoopbackAddress(req.socket.remoteAddress)) {
+      res.status(403).send('the developer dashboard is available only from this machine');
+      return;
+    }
+    if (req.query.token !== deps.devToken) {
+      res.status(401).send('a valid developer dashboard link is required');
+      return;
+    }
     const file = join(publicDir(), 'dashboard.html');
     if (!existsSync(file)) {
       res.status(404).send('dashboard is not available');
@@ -52,7 +65,14 @@ export function createApp(deps: ServerDeps): Express {
     );
     res.type('text/html; charset=utf-8').send(html);
   });
-  app.get('/', (_req, res) => res.redirect('/dashboard'));
+
+  app.get('/', (req, res) => {
+    if (!isLoopbackAddress(req.socket.remoteAddress)) {
+      res.status(404).send('not found');
+      return;
+    }
+    res.redirect(`/dashboard?token=${encodeURIComponent(deps.devToken)}`);
+  });
 
   return app;
 }
