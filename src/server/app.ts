@@ -23,6 +23,9 @@ export interface ServerDeps {
 export function createApp(deps: ServerDeps): Express {
   const app = express();
   app.disable('x-powered-by');
+  // Expose the preview registry so the HTTP server can resolve WebSocket
+  // upgrades for framework previews without re-plumbing dependencies.
+  app.locals.previews = deps.previews;
 
   // Pinpoint-owned browser assets (overlay + dashboard scripts/styles).
   app.use(PINPOINT_BASE, express.static(publicDir()));
