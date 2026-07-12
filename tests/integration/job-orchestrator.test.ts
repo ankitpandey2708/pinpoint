@@ -210,16 +210,19 @@ describe('Orchestrator', () => {
     expect(statuses).not.toContain('pr-opened');
   });
 
-  it('fails before running the agent when the clean baseline does not pass', async () => {
+  it('runs the baseline only on failure and attributes a pre-existing break', async () => {
     await repositories.reviews.insert(makeReview('rev_1'));
-    const orch = new Orchestrator(buildDeps({ baselineOk: false }));
+    // Post-agent verify fails AND the baseline (after reset) also fails → the
+    // break was pre-existing, not caused by the feedback.
+    const orch = new Orchestrator(buildDeps({ verifyOk: false, baselineOk: false }));
     const job = await orch.startJobForReview('rev_1');
     await orch.settle(job.id);
     const final = (await repositories.jobs.get(job.id))!;
     expect(final.status).toBe('failed');
     expect(final.baselineVerification?.ok).toBe(false);
-    expect(final.failureReason).toMatch(/baseline/i);
-    expect(steps).toEqual(['verify']);
+    expect(final.failureReason).toMatch(/already failing at the base commit/i);
+    // Gates ran twice here: post-agent verify, then the attribution baseline.
+    expect(steps).toEqual(['agent', 'verify', 'verify']);
     expect(pushCalls).toBe(0);
   });
 
