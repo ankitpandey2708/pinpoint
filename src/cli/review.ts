@@ -48,7 +48,6 @@ export interface ReviewServices {
   checkGitHubAuth?: () => Promise<void>;
   dataDir: string;
   workRoot: string;
-  worktreesRoot: string;
   logsDir?: string;
 }
 
@@ -130,10 +129,9 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
   const orchestrator = new Orchestrator({
     repositories,
     agent: services.makeAgent(),
-    worktrees: realWorktreeAdapter,
+    repo: realRepoAdapter,
     verifier: realVerifyAdapter,
     github: realGithubAdapter,
-    worktreesRoot: services.worktreesRoot,
     logsDir: services.logsDir,
   });
   // Any nonterminal jobs from a previous run are unrecoverable; mark them failed.
@@ -170,7 +168,6 @@ export function realServices(dataRoot: string): ReviewServices {
     checkGitHubAuth: () => checkGitHubAuth(),
     dataDir: join(dataRoot, 'data'),
     workRoot: join(runtimeRoot, 'previews'),
-    worktreesRoot: join(runtimeRoot, 'worktrees'),
     logsDir: join(dataRoot, 'data', 'logs'),
   };
 }

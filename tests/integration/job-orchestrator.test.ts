@@ -12,7 +12,7 @@ let dataDir: string;
 let repositories: Repositories;
 let statuses: JobStatus[];
 let pushCalls: number;
-let removed: string[];
+let restored: string[];
 let steps: string[];
 
 const project: Project = {
@@ -98,13 +98,14 @@ function buildDeps(knobs: Knobs = {}): OrchestratorDeps {
   return {
     repositories,
     agent,
-    worktrees: {
+    repo: {
       generateBranchName: (seed) => `pinpoint/review-${seed}`,
-      createWorktree: async (input) => ({ path: input.path, branch: input.branch, baseCommit: input.baseCommit }),
+      currentBranch: async () => 'main',
+      createReviewBranch: async () => {},
       changedFiles: async () => changed,
       commitAll: async () => ({ committed: changed.length > 0, sha: 'abc1234' }),
-      removeWorktree: async (_root, path) => {
-        removed.push(path);
+      restoreBranch: async (_root, branch) => {
+        restored.push(branch);
       },
     },
     verifier: {
@@ -122,7 +123,6 @@ function buildDeps(knobs: Knobs = {}): OrchestratorDeps {
         return { url: 'https://github.com/acme/site/pull/7', number: 7 };
       },
     },
-    worktreesRoot: join(dataDir, 'worktrees'),
     onStatus: (job) => statuses.push(job.status),
   };
 }
@@ -133,7 +133,7 @@ beforeEach(async () => {
   await repositories.projects.insert(project);
   statuses = [];
   pushCalls = 0;
-  removed = [];
+  restored = [];
   steps = [];
 });
 
@@ -167,8 +167,8 @@ describe('Orchestrator', () => {
       'pr-opened',
     ]);
     expect(pushCalls).toBe(1);
-    // Successful worktree is cleaned up.
-    expect(removed).toHaveLength(1);
+    // Developer's original branch is restored after success.
+    expect(restored).toEqual(['main']);
   });
 
   it('prevents more than one active job per review', async () => {
@@ -194,7 +194,7 @@ describe('Orchestrator', () => {
     expect(retried.attempts).toBe(2);
   });
 
-  it('fails without pushing when verification fails and keeps the worktree', async () => {
+  it('fails without pushing when verification fails and restores the branch', async () => {
     await repositories.reviews.insert(makeReview('rev_1'));
     const orch = new Orchestrator(buildDeps({ verifyOk: false }));
     const job = await orch.startJobForReview('rev_1');
@@ -203,7 +203,7 @@ describe('Orchestrator', () => {
     expect(final.status).toBe('failed');
     expect(final.verification?.ok).toBe(false);
     expect(pushCalls).toBe(0);
-    expect(removed).toHaveLength(0);
+    expect(restored).toEqual(['main']);
     expect(statuses).not.toContain('pr-opened');
   });
 
