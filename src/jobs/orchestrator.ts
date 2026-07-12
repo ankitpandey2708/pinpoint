@@ -4,7 +4,6 @@ import { entityId } from '../lib/ids';
 import { buildAgentPrompt } from '../agents/prompt';
 import {
   generateBranchName,
-  currentBranch,
   createReviewBranch,
   changedFiles,
   commitAll,
@@ -44,7 +43,6 @@ export interface GithubAdapter {
 
 export const realRepoAdapter: RepoAdapter = {
   generateBranchName,
-  currentBranch,
   createReviewBranch,
   changedFiles,
   commitAll,
