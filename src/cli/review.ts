@@ -1,5 +1,7 @@
 import { existsSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import type { Express } from 'express';
 import { createApp } from '../server/app';
@@ -156,6 +158,8 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
 
 /** Real service wiring used by the CLI entry point. */
 export function realServices(dataRoot: string): ReviewServices {
+  const runtimeKey = createHash('sha256').update(resolve(dataRoot)).digest('hex').slice(0, 12);
+  const runtimeRoot = join(tmpdir(), 'pinpoint-runtime', runtimeKey);
   return {
     inspect: inspectRepository,
     createWorkspace: createPreviewWorkspace,
@@ -164,10 +168,10 @@ export function realServices(dataRoot: string): ReviewServices {
     listen: httpListen,
     makeAgent: () => new ClaudeAgent(),
     checkGitHubAuth: () => checkGitHubAuth(),
-    dataDir: `${dataRoot}/data`,
-    workRoot: `${dataRoot}/.pinpoint/previews`,
-    worktreesRoot: `${dataRoot}/.pinpoint/worktrees`,
-    logsDir: `${dataRoot}/data/logs`,
+    dataDir: join(dataRoot, 'data'),
+    workRoot: join(runtimeRoot, 'previews'),
+    worktreesRoot: join(runtimeRoot, 'worktrees'),
+    logsDir: join(dataRoot, 'data', 'logs'),
   };
 }
 

@@ -173,6 +173,37 @@
       panel.appendChild(el('div', 'fail-reason', 'Failed: ' + job.failureReason));
     }
 
+    // Sanitized agent log, lazy-loaded on demand. Available once the agent has
+    // produced a log file (any stage from running-agent onward).
+    if (job.logPath) {
+      var logBtn = el('button', 'ghost', 'Show agent log');
+      var logPre = el('pre', 'log');
+      logPre.hidden = true;
+      logBtn.addEventListener('click', function () {
+        if (!logPre.hidden) {
+          logPre.hidden = true;
+          logBtn.textContent = 'Show agent log';
+          return;
+        }
+        logBtn.disabled = true;
+        getJSON(API + '/jobs/' + encodeURIComponent(job.id) + '/log')
+          .then(function (d) {
+            logPre.textContent = d.log && d.log.length ? d.log : '(no log output)';
+            logPre.hidden = false;
+            logBtn.textContent = 'Hide agent log';
+          })
+          .catch(function () {
+            logPre.textContent = 'Could not load the log.';
+            logPre.hidden = false;
+          })
+          .then(function () {
+            logBtn.disabled = false;
+          });
+      });
+      panel.appendChild(logBtn);
+      panel.appendChild(logPre);
+    }
+
     detailEl.appendChild(panel);
   }
 

@@ -293,6 +293,7 @@ export function createApiRouter(deps: ApiDeps): Router {
   router.get('/reviews', developerRead(listReviews));
   router.get('/reviews/:id', developerRead(getReviewDetail));
   router.get('/jobs/:id', developerRead(getJob));
+  router.get('/jobs/:id/log', developerRead(getJobLog));
 
   // Developer-approved job initiation (Task 8, protected).
   router.post('/reviews/:id/jobs', wrap(startJob));
