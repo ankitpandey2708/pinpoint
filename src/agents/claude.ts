@@ -29,9 +29,9 @@ function claudeArgs(model: string): string[] {
     'stream-json',
     // The CLI requires --verbose when combining --print with stream-json output.
     '--verbose',
-    // Speed: skip hooks, LSP, plugins and all MCP servers. None are needed for
-    // scoped file edits and they add several seconds of cold start per run.
-    '--bare',
+    // Speed: ignore all configured MCP servers (none are needed for scoped file
+    // edits, and the developer's global servers add cold-start). NOTE: do not add
+    // --bare here — it drops the OAuth login and the agent fails "Not logged in".
     '--strict-mcp-config',
     // Pin a fast, capable model instead of the CLI's (possibly slow) default.
     '--model',

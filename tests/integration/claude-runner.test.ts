@@ -70,7 +70,6 @@ describe('ClaudeAgent', () => {
       '--output-format',
       'stream-json',
       '--verbose',
-      '--bare',
       '--strict-mcp-config',
       '--model',
       'sonnet',
