@@ -12,6 +12,7 @@ import {
   type Worktree,
 } from '../git/worktree';
 import { verifyRepository, type VerifyOptions } from '../git/verify';
+import { assertSafeChangedFiles } from '../git/change-policy';
 import { createDraftPullRequest, type DraftPrInput } from '../github/client';
 import type { CodingAgent } from '../agents/types';
 import type { Repositories } from '../storage/repositories';
@@ -281,6 +282,7 @@ export class Orchestrator {
     if (changed.length === 0) {
       throw new JobError('the agent made no changes; no pull request was created');
     }
+    await assertSafeChangedFiles(worktree.path, changed);
     await this.deps.repositories.jobs.update(jobId, {
       changedFiles: changed,
       updatedAt: new Date().toISOString(),
