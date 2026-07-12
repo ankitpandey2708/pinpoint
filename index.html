@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pin Point — Feedback, pinned right where it happens.</title>
+<title>Pin Point — Feedback on the real thing, not a Figma file.</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236c5ce7' d='M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -333,6 +333,15 @@
     letter-spacing: -0.02em;
   }
 
+  .section-head h2.nowrap { white-space: nowrap; }
+
+  @media (max-width: 640px) {
+    .section-head h2.nowrap {
+      white-space: normal;
+      font-size: 28px;
+    }
+  }
+
   .section-head p {
     font-size: 17px;
     color: var(--ink-soft);
@@ -446,15 +455,15 @@
 
   .audiences {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
   }
 
   .audience-card {
     background: #fff;
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 40px 36px;
+    padding: 32px 28px;
     box-shadow: var(--shadow-sm);
     transition: transform 0.18s ease, box-shadow 0.18s ease;
   }
@@ -465,8 +474,9 @@
   }
 
   .audience-card h3 {
-    font-size: 21px;
+    font-size: 18.5px;
     font-weight: 700;
+    line-height: 1.3;
     margin: 0 0 6px;
     letter-spacing: -0.01em;
   }
@@ -580,8 +590,8 @@
   <div class="hero-glow" aria-hidden="true"></div>
   <div class="wrap hero-inner">
     <span class="eyebrow"><span class="dot"></span>Now in early access</span>
-    <h1>Feedback, pinned<br>right <span class="accent">where it happens.</span></h1>
-    <p class="subhead">Clients and freelancers leave comments directly on the live landing page — no more screenshots, no more guessing what "that" means.</p>
+    <h1>Feedback on the real thing,<br>not a <span class="accent">Figma file.</span></h1>
+    <p class="subhead">Designers and agencies get client comments directly on the live product — no mockup, no mismatch. Every comment maps to your source, ready to become a draft pull request.</p>
 
     <div class="waitlist-form" id="waitlist">
       <a class="waitlist-btn" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="hero">Join the waitlist</a>
@@ -601,9 +611,9 @@
         <div class="fake-block w90"></div>
       </div>
       <div class="pin pin1"></div>
-      <div class="callout c1">Move this heading up</div>
+      <div class="callout c1">Make this heading bigger</div>
       <div class="pin pin2"></div>
-      <div class="callout c2">Button text unclear</div>
+      <div class="callout c2">Change to "Start Free Trial"</div>
     </div>
   </div>
 </header>
@@ -612,24 +622,24 @@
   <div class="wrap">
     <div class="section-head">
       <span class="section-eyebrow">The problem</span>
-      <h2>Feedback shouldn't live somewhere else</h2>
-      <p>Today it's a screenshot in Slack, a vague email, or a comment buried in a doc — disconnected from the page it's actually about.</p>
+      <h2>The mockup gets the comments. The product gets the bugs.</h2>
+      <p>Feedback happens on a Figma frame, a screenshot, or an email — anywhere except the thing you actually shipped.</p>
     </div>
     <div class="problem-grid">
       <div class="problem-card">
-        <div class="icon">💬</div>
-        <h3>Scattered feedback</h3>
-        <p>By the time a freelancer reads it, they're guessing what "that" refers to.</p>
+        <div class="icon">🖼️</div>
+        <h3>Mockups go stale</h3>
+        <p>Figma shows the design. It doesn't show what's actually live, broken, or already changed in code.</p>
       </div>
       <div class="problem-card">
-        <div class="icon">🔁</div>
-        <h3>Slow back-and-forth</h3>
-        <p>Ambiguous notes mean another round of "wait, which section did you mean?"</p>
+        <div class="icon">📥</div>
+        <h3>Feedback in the wrong place</h3>
+        <p>A comment on a static frame or a line in an email doesn't point to the real component behind it.</p>
       </div>
       <div class="problem-card">
         <div class="icon">⏱️</div>
-        <h3>Small fixes, big context-switch</h3>
-        <p>Even clear feedback still costs a full context-switch to turn into an actual change.</p>
+        <h3>Small fixes, wasted afternoons</h3>
+        <p>Even once it's clear, turning a one-line note into a reviewed PR eats your afternoon.</p>
       </div>
     </div>
   </div>
@@ -639,25 +649,25 @@
   <div class="wrap">
     <div class="section-head">
       <span class="section-eyebrow">How it works</span>
-      <h2>From comment to fix, automatically</h2>
-      <p>Three steps from "here's what's wrong" to a fix ready for review.</p>
+      <h2 class="nowrap">Review the product, not a proxy for it</h2>
+      <p>Send the real thing, not a Figma link — and get back a draft PR, not a comment thread.</p>
     </div>
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
-        <h3>Pin it</h3>
-        <p>Click directly on the live page and leave a comment right where it applies.</p>
+        <h3>Send the live product</h3>
+        <p>Point Pin Point at your GitHub repo. It builds an instrumented preview of the actual site — no Figma link, no extension or login needed on their end.</p>
       </div>
       <div class="step">
         <div class="step-num">2</div>
-        <h3>AI sorts it</h3>
-        <p>Every comment is triaged automatically by effort.</p>
-        <span class="tag low">low</span><span class="tag mid">mid</span><span class="tag high">high</span>
+        <h3>They pin comments on it</h3>
+        <p>Clients click elements on the real, live page and leave plain-language notes. Each one gets mapped back to the source file behind it.</p>
+        <span class="tag low">direct</span><span class="tag mid">approximate</span><span class="tag high">unresolved</span>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <h3>Low-effort → PR</h3>
-        <p>An agent drafts the fix as a pull request. A human always reviews before it merges.</p>
+        <h3>You approve, agent fixes it</h3>
+        <p>Review the mapped feedback in your dashboard and click Generate Fix PR. A coding agent implements it in an isolated worktree, runs your tests and build, then opens a draft PR.</p>
       </div>
     </div>
   </div>
@@ -666,27 +676,36 @@
 <section class="soft">
   <div class="wrap">
     <div class="section-head">
-      <span class="section-eyebrow">Built for both sides</span>
-      <h2>One shared workspace</h2>
-      <p>Not a tool that favors the client or the freelancer — everyone works from the same page, literally.</p>
+      <span class="section-eyebrow">Built for the people who ship the product</span>
+      <h2 class="nowrap">Whoever owns the build, this is for you</h2>
+      <p>Stop maintaining a Figma file as the source of truth. Let feedback happen on what's actually live.</p>
     </div>
     <div class="audiences">
       <div class="audience-card">
-        <span class="kicker">For clients &amp; teams</span>
-        <h3>Say it once, where it belongs</h3>
+        <span class="kicker">Designers &amp; agencies</span>
+        <h3>No more "does the build match the design?"</h3>
         <ul>
-          <li>Leave feedback in plain language, right on the page</li>
-          <li>No new tool to learn, no ticket format to follow</li>
-          <li>See exactly what's been actioned and what's pending</li>
+          <li>Clients react to the real product, not a frame that's already out of date</li>
+          <li>Every client's notes land in the same dashboard, mapped to source</li>
+          <li>Tests and build run before anything gets pushed — always a draft PR</li>
         </ul>
       </div>
       <div class="audience-card">
-        <span class="kicker">For freelancers</span>
-        <h3>Spend time on what needs judgment</h3>
+        <span class="kicker">Freelancers</span>
+        <h3>Less guessing, more building</h3>
         <ul>
-          <li>Every comment is unambiguous and located exactly where it applies</li>
-          <li>Easy fixes show up as a PR, ready to review</li>
-          <li>Focus your time on the feedback that actually needs it</li>
+          <li>No more decoding what "that button" means from a screenshot</li>
+          <li>Client feedback comes back pinned to the exact live element</li>
+          <li>You still approve and merge every change — nothing ships without you</li>
+        </ul>
+      </div>
+      <div class="audience-card">
+        <span class="kicker">Product managers</span>
+        <h3>Review the build, not a mockup of it</h3>
+        <ul>
+          <li>Stop relaying feedback from Figma comments to engineering by hand</li>
+          <li>Every note is already tied to a component before it reaches your team</li>
+          <li>See exactly what's pending and what's already a draft PR</li>
         </ul>
       </div>
     </div>
@@ -697,11 +716,11 @@
   <div class="cta-glow" aria-hidden="true"></div>
   <div class="wrap">
     <h2>Be first to try Pin Point</h2>
-    <p>We're opening early access soon. Join the waitlist to get in early.</p>
+    <p>We're building the first version — plain HTML, React, and Next.js repos. Join the waitlist to get in early.</p>
     <div class="waitlist-form">
       <a class="waitlist-btn" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="footer">Join the waitlist</a>
     </div>
-    <div class="foot-note">Pin Point &middot; feedback, pinned right where it happens.</div>
+    <div class="foot-note">Pin Point &middot; feedback on the real thing, not a Figma file.</div>
   </div>
 </footer>
 
