@@ -386,7 +386,7 @@
       var hint = document.createElement('p');
       hint.className = 'hint';
       hint.textContent = list.length
-        ? 'Click a comment to edit it. Submit when done (name optional).'
+        ? 'Click a comment to edit it. Submit when done.'
         : 'Click any element on the page to leave feedback.';
       body.appendChild(hint);
 
@@ -419,32 +419,27 @@
         body.appendChild(item);
       });
 
-      var name = document.createElement('input');
-      name.placeholder = 'Your name (optional)';
-      name.value = controller.getReviewer();
-      name.addEventListener('input', function () {
-        controller.setReviewerSilent(name.value);
-      });
-      body.appendChild(name);
-
-      var submit = document.createElement('button');
-      submit.className = 'submit';
-      submit.textContent = 'Submit feedback';
-      submit.addEventListener('click', function () {
-        submit.disabled = true;
-        controller.submit().then(function (res) {
-          submit.disabled = false;
-          if (res.ok) {
-            message = res.jobId
-              ? 'Thanks! Your feedback was submitted — a fix pull request is being generated automatically.'
-              : 'Thank you! Your feedback was submitted.';
-          } else {
-            message = res.error || 'Submission failed.';
-          }
-          controller.render();
+      // Submit CTA only appears once at least one element has been clicked.
+      if (list.length) {
+        var submit = document.createElement('button');
+        submit.className = 'submit';
+        submit.textContent = 'Submit feedback';
+        submit.addEventListener('click', function () {
+          submit.disabled = true;
+          controller.submit().then(function (res) {
+            submit.disabled = false;
+            if (res.ok) {
+              message = res.jobId
+                ? 'Thanks! Your feedback was submitted — a fix pull request is being generated automatically.'
+                : 'Thank you! Your feedback was submitted.';
+            } else {
+              message = res.error || 'Submission failed.';
+            }
+            controller.render();
+          });
         });
-      });
-      body.appendChild(submit);
+        body.appendChild(submit);
+      }
 
       var msg = document.createElement('div');
       msg.className = 'msg';
