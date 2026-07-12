@@ -237,13 +237,6 @@
       '  border-radius:10px; padding:10px; font-weight:700; cursor:pointer; }',
       '.submit:disabled { opacity:.5; cursor:not-allowed; }',
       '.msg { font-size:12px; margin-top:8px; min-height:14px; }',
-      '.hl-layer { position:fixed; inset:0; pointer-events:none; z-index:2147483646; }',
-      '.hl-hover { position:fixed; border:2px solid ' + ACCENT + '; border-radius:4px;',
-      '  background:rgba(109,94,252,.12); pointer-events:none; transition:all 60ms ease-out; display:none; }',
-      '.hl-pin { position:fixed; transform:translate(-50%,-50%); width:22px; height:22px;',
-      '  border-radius:50%; background:' + ACCENT + '; color:#fff; display:flex; align-items:center;',
-      '  justify-content:center; font-size:12px; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,.4);',
-      '  pointer-events:none; }',
     ].join('\n');
     root.appendChild(style);
 

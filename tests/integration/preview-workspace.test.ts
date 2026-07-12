@@ -37,6 +37,9 @@ beforeEach(async () => {
   workRoot = await mkdtemp(join(tmpdir(), 'pinpoint-work-'));
   await writeFile(join(srcDir, 'index.html'), ORIGINAL_HTML, 'utf8');
   await writeFile(join(srcDir, 'styles.css'), 'body{color:red}', 'utf8');
+  await writeFile(join(srcDir, '.env'), 'SECRET=do-not-copy', 'utf8');
+  await writeFile(join(srcDir, '.npmrc'), '//registry/:_authToken=do-not-copy', 'utf8');
+  await writeFile(join(srcDir, 'private-key.pem'), 'PRIVATE KEY', 'utf8');
   await mkdir(join(srcDir, 'node_modules', 'pkg'), { recursive: true });
   await writeFile(join(srcDir, 'node_modules', 'pkg', 'index.js'), 'x', 'utf8');
   await mkdir(join(srcDir, '.git'), { recursive: true });
@@ -59,6 +62,9 @@ describe('createPreviewWorkspace', () => {
     const ws = await createPreviewWorkspace(project(), { workRoot });
     expect(existsSync(join(ws.siteDir, 'node_modules'))).toBe(false);
     expect(existsSync(join(ws.siteDir, '.git'))).toBe(false);
+    expect(existsSync(join(ws.siteDir, '.env'))).toBe(false);
+    expect(existsSync(join(ws.siteDir, '.npmrc'))).toBe(false);
+    expect(existsSync(join(ws.siteDir, 'private-key.pem'))).toBe(false);
   });
 
   it('instruments static HTML in the copy and keeps assets available', async () => {
