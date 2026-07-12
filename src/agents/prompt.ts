@@ -66,10 +66,14 @@ export function buildAgentPrompt(input: PromptInput): string {
   lines.push('## Scope and rules');
   lines.push('- Make ONLY the changes required by the feedback above. Do not make unrelated');
   lines.push('  edits, refactors, or dependency changes. Keep the change tightly scoped.');
-  lines.push('- Stay within this working directory (worktree). Do not touch files outside it.');
+  lines.push('- Stay within this repository directory. Do not touch files outside it.');
+  lines.push('- Work efficiently: go straight to the mapped source, make the edit, and stop.');
+  lines.push('  Do not explore beyond what the feedback needs.');
   lines.push('');
-  lines.push('## Verification');
-  lines.push('Before you finish, run these commands and make sure they pass:');
+  lines.push('## Verification (do NOT run anything yourself)');
+  lines.push('You have no shell — you cannot run tests, builds, or any command, so do not try.');
+  lines.push('After you finish editing, Pinpoint runs these checks itself and rejects the change');
+  lines.push('if they fail, so keep your edit consistent with them:');
   verificationCommands.forEach((cmd) => lines.push(`- ${cmd.join(' ')}`));
   lines.push('');
   lines.push('## Prohibited actions');

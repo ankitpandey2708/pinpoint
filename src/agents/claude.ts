@@ -37,8 +37,9 @@ function claudeArgs(model: string): string[] {
     '--model',
     model,
     '--no-session-persistence',
+    // Scoped edits rarely need many turns; cap runaway loops to bound latency.
     '--max-turns',
-    '30',
+    '15',
     '--permission-mode',
     'acceptEdits',
     // Pinpoint owns all command execution, verification, Git, and GitHub work.

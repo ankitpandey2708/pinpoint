@@ -75,7 +75,7 @@ describe('ClaudeAgent', () => {
       'sonnet',
       '--no-session-persistence',
       '--max-turns',
-      '30',
+      '15',
       '--permission-mode',
       'acceptEdits',
       '--allowedTools',
