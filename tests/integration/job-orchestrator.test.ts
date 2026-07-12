@@ -13,6 +13,7 @@ let repositories: Repositories;
 let statuses: JobStatus[];
 let pushCalls: number;
 let removed: string[];
+let steps: string[];
 
 const project: Project = {
   id: 'proj_1',
@@ -62,6 +63,7 @@ function makeReview(id: string): SubmittedReview {
 interface Knobs {
   agentOk?: boolean;
   changed?: string[];
+  baselineOk?: boolean;
   verifyOk?: boolean;
   githubThrows?: boolean;
 }
@@ -70,24 +72,28 @@ function buildDeps(knobs: Knobs = {}): OrchestratorDeps {
   const {
     agentOk = true,
     changed = ['index.html'],
+    baselineOk = true,
     verifyOk = true,
     githubThrows = false,
   } = knobs;
 
   const agent: CodingAgent = {
     name: 'fake',
-    run: async () => ({
-      ok: agentOk,
-      exitCode: agentOk ? 0 : 1,
-      timedOut: false,
-      aborted: false,
-      events: [],
-      log: 'agent log',
-      durationMs: 1,
-    }),
+    run: async () => {
+      steps.push('agent');
+      return {
+        ok: agentOk,
+        exitCode: agentOk ? 0 : 1,
+        timedOut: false,
+        aborted: false,
+        events: [],
+        log: 'agent log',
+        durationMs: 1,
+      };
+    },
   };
 
-  const verification: VerificationResult = { ok: verifyOk, checks: [] };
+  let verifyCalls = 0;
 
   return {
     repositories,
@@ -102,7 +108,12 @@ function buildDeps(knobs: Knobs = {}): OrchestratorDeps {
       },
     },
     verifier: {
-      verifyRepository: async () => verification,
+      verifyRepository: async () => {
+        steps.push('verify');
+        verifyCalls += 1;
+        const ok = verifyCalls === 1 ? baselineOk : verifyOk;
+        return { ok, checks: [] } satisfies VerificationResult;
+      },
     },
     github: {
       createDraftPullRequest: async () => {

@@ -81,6 +81,44 @@ the local repo), `--port <port>`, `--host <host>`.
    `pinpoint/review-*` branch, and opens a **draft** PR.
 4. **Developer decides.** Review the draft on GitHub and merge, revise, or close.
 
+## Local demo walkthrough
+
+A full local run against Pin Point's own repository. Everything is loopback-only
+with no network side effects until you explicitly click **Generate Fix PR** with
+`gh`/`claude` authenticated. Install/verify and start the server as above (the
+working tree must be clean first), then play both roles.
+
+**Act as the client:**
+
+1. Open the **review link** in a browser.
+2. Click two elements on the landing page (for example a heading and a button).
+3. Type a comment for each (e.g. "Make this heading bigger").
+4. **Refresh the page** — your draft comments are still there (localStorage draft
+   recovery).
+5. Enter a name and click **Submit feedback**.
+
+**Act as the developer:**
+
+1. Open the **dashboard**.
+2. Select the review. Each comment shows its source mapping back to `index.html`
+   with a `direct` confidence badge and a source chip like `index.html:42`.
+3. Click **Generate Fix PR**. Watch the job move through
+   `preparing → running-agent → verifying → pushing → pr-opened`.
+4. On success the dashboard shows a **draft pull request** link. Your local `main`
+   is untouched; the change lives on a generated `pinpoint/review-*` branch.
+
+Press **Ctrl+C** to stop (it shuts down the preview and releases the port).
+
+### Troubleshooting
+
+- **"working tree must be clean"** — commit or stash changes before starting.
+- **PR step fails** — ensure `gh auth status` is authenticated and the repo has a
+  GitHub `origin` remote.
+- **Agent step fails** — ensure the `claude` CLI is installed and authenticated.
+  The job is marked `failed` with a sanitized reason and the worktree is kept for
+  inspection; you can retry from the dashboard.
+- **Port in use** — pass `--port <port>`.
+
 ## Data and cleanup
 
 Runtime state is local JSON under `data/` (`projects.json`, `reviews.json`,
@@ -97,8 +135,7 @@ Credentials (GitHub, Claude) live on the server and are never sent to review
 clients or written to logs (output is secret-redacted). The dashboard's mutation
 routes require a per-server developer token embedded only in the locally served
 dashboard. See [`docs/visual-feedback-to-autonomous-pr-flow.md`](docs/visual-feedback-to-autonomous-pr-flow.md)
-for the full specification and [`docs/local-demo.md`](docs/local-demo.md) for a
-step-by-step local walkthrough.
+for the full specification.
 
 ## Development
 
