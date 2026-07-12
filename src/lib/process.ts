@@ -12,6 +12,8 @@ export interface RunProcessOptions {
   input?: string;
   /** Streamed sanitized stdout lines (already redacted). */
   onStdout?: (chunk: string) => void;
+  /** Streamed sanitized stderr chunks (already redacted). */
+  onStderr?: (chunk: string) => void;
 }
 
 export interface ProcessResult {
@@ -163,6 +165,7 @@ export function runProcess(
     maxOutputBytes = DEFAULT_MAX_OUTPUT,
     input,
     onStdout,
+    onStderr,
   } = options;
 
   return new Promise<ProcessResult>((resolve) => {
@@ -200,6 +203,7 @@ export function runProcess(
         if (onStdout) onStdout(redactSecrets(piece));
       } else {
         stderr += piece;
+        if (onStderr) onStderr(redactSecrets(piece));
       }
     };
 

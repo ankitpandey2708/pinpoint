@@ -59,6 +59,19 @@ export class ClaudeAgent implements CodingAgent {
 
     const events: AgentEvent[] = [];
     let buffer = '';
+    let errBuffer = '';
+
+    // Surface the Claude CLI's stderr (startup/flag/auth errors) live in the
+    // server terminal, line by line, so failures are visible immediately.
+    const emitStderr = (chunk: string): void => {
+      errBuffer += chunk;
+      let idx: number;
+      while ((idx = errBuffer.indexOf('\n')) !== -1) {
+        const line = errBuffer.slice(0, idx);
+        errBuffer = errBuffer.slice(idx + 1);
+        if (line.trim()) process.stderr.write('  [claude] ' + line + '\n');
+      }
+    };
 
     const handleLine = (line: string): void => {
       const trimmed = line.trim();
@@ -94,10 +107,12 @@ export class ClaudeAgent implements CodingAgent {
           if (options.logPath) void appendFile(options.logPath, line + '\n', 'utf8').catch(() => {});
         }
       },
+      onStderr: emitStderr,
     });
 
     // Flush any trailing partial line.
     if (buffer.trim()) handleLine(buffer);
+    if (errBuffer.trim()) process.stderr.write('  [claude] ' + errBuffer.trim() + '\n');
 
     // Persist stderr to the job log too — the CLI reports startup/flag/auth
     // errors there, and onStdout only captured stdout lines.

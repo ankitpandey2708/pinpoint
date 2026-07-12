@@ -268,10 +268,17 @@ export class Orchestrator {
       const agentResult = await this.deps.agent.run({ prompt, cwd: project.repoPath }, { logPath });
       await this.deps.repositories.jobs.update(jobId, { logPath, updatedAt: new Date().toISOString() });
       if (!agentResult.ok) {
+        const detail = (agentResult.log || '')
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .slice(-3)
+          .join(' | ')
+          .slice(-400);
         throw new JobError(
-          agentResult.timedOut
+          (agentResult.timedOut
             ? 'the coding agent timed out'
-            : 'the coding agent did not complete successfully',
+            : 'the coding agent did not complete successfully') + (detail ? `: ${detail}` : ''),
         );
       }
 
