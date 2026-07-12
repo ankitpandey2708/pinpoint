@@ -240,8 +240,8 @@ describe('Orchestrator', () => {
     const final = (await repositories.jobs.get(job.id))!;
     expect(final.status).toBe('failed');
     expect(final.failureReason).toMatch(/gh failed/);
-    // Worktree kept for inspection after a failed push.
-    expect(removed).toHaveLength(0);
+    // Even after a failed push, the developer's branch is restored.
+    expect(restored).toEqual(['main']);
   });
 
   it('marks interrupted nonterminal jobs as failed on recovery', async () => {

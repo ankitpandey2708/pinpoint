@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runProcess } from '../../src/lib/process';
-import { Orchestrator, realWorktreeAdapter, realVerifyAdapter } from '../../src/jobs/orchestrator';
+import { Orchestrator, realRepoAdapter, realVerifyAdapter } from '../../src/jobs/orchestrator';
 import { createRepositories, type Repositories } from '../../src/storage/repositories';
 import type { CodingAgent } from '../../src/agents/types';
 import type { Project, SubmittedReview } from '../../src/domain/types';
@@ -100,7 +100,7 @@ describe('orchestrated job with no network side effects', () => {
     const orch = new Orchestrator({
       repositories,
       agent,
-      worktrees: realWorktreeAdapter,
+      repo: realRepoAdapter,
       verifier: realVerifyAdapter,
       github: {
         createDraftPullRequest: async () => {
@@ -108,7 +108,6 @@ describe('orchestrated job with no network side effects', () => {
           return { url: 'https://github.com/acme/site/pull/123', number: 123 };
         },
       },
-      worktreesRoot: join(tmp, 'worktrees'),
     });
 
     const job = await orch.startJobForReview('rev_1');

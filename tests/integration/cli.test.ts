@@ -58,7 +58,6 @@ function services(over: Partial<ReviewServices> = {}): ReviewServices {
     makeAgent: () => fakeAgent,
     dataDir: join(root, 'data'),
     workRoot: join(root, 'previews'),
-    worktreesRoot: join(root, 'worktrees'),
     ...over,
   };
 }
@@ -74,10 +73,9 @@ afterEach(async () => {
 });
 
 describe('pinpoint review CLI', () => {
-  it('keeps preview and worktree roots outside the repository being reviewed', () => {
+  it('keeps the preview root outside the repository being reviewed', () => {
     const real = realServices(root);
     expect(relative(root, real.workRoot).startsWith('..')).toBe(true);
-    expect(relative(root, real.worktreesRoot).startsWith('..')).toBe(true);
   });
 
   it('exposes help describing the review command and its options', () => {
