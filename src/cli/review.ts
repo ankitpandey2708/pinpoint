@@ -133,17 +133,19 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
     verifier: realVerifyAdapter,
     github: realGithubAdapter,
     logsDir: services.logsDir,
-    // Surface job progress in the server terminal, including the draft PR link.
+    // Surface job progress in the server terminal, including elapsed time (from
+    // queued) at each stage and the total to the draft PR link.
     onStatus: (job) => {
+      const secs = ((Date.now() - Date.parse(job.createdAt)) / 1000).toFixed(1);
       if (job.status === 'pr-opened' && job.prUrl) {
         // eslint-disable-next-line no-console
-        console.log(`\n  ✅ Draft PR ready for review ${job.reviewId}:\n     ${job.prUrl}\n`);
+        console.log(`\n  ✅ Draft PR ready for review ${job.reviewId} in ${secs}s (queued → PR):\n     ${job.prUrl}\n`);
       } else if (job.status === 'failed') {
         // eslint-disable-next-line no-console
-        console.log(`\n  ❌ Fix job for review ${job.reviewId} failed: ${job.failureReason ?? 'unknown'}\n`);
+        console.log(`\n  ❌ Fix job for review ${job.reviewId} failed after ${secs}s: ${job.failureReason ?? 'unknown'}\n`);
       } else {
         // eslint-disable-next-line no-console
-        console.log(`  … review ${job.reviewId}: ${job.status}`);
+        console.log(`  … review ${job.reviewId}: ${job.status} (+${secs}s)`);
       }
     },
   });
