@@ -26,12 +26,13 @@ import type {
 } from '../domain/types';
 
 /** Adapters over the git/verify/github modules, injectable for tests. */
-export interface WorktreeAdapter {
+export interface RepoAdapter {
   generateBranchName(seed: string): string;
-  createWorktree(input: CreateWorktreeInput): Promise<Worktree>;
-  changedFiles(path: string): Promise<string[]>;
-  commitAll(path: string, message: string): Promise<{ committed: boolean; sha?: string }>;
-  removeWorktree(repoRoot: string, path: string): Promise<void>;
+  currentBranch(repoRoot: string): Promise<string>;
+  createReviewBranch(repoRoot: string, branch: string, baseCommit: string): Promise<void>;
+  changedFiles(repoRoot: string): Promise<string[]>;
+  commitAll(repoRoot: string, message: string): Promise<{ committed: boolean; sha?: string }>;
+  restoreBranch(repoRoot: string, branch: string): Promise<void>;
 }
 
 export interface VerifyAdapter {
@@ -42,12 +43,13 @@ export interface GithubAdapter {
   createDraftPullRequest(input: DraftPrInput): Promise<{ url: string; number: number }>;
 }
 
-export const realWorktreeAdapter: WorktreeAdapter = {
+export const realRepoAdapter: RepoAdapter = {
   generateBranchName,
-  createWorktree,
+  currentBranch,
+  createReviewBranch,
   changedFiles,
   commitAll,
-  removeWorktree,
+  restoreBranch,
 };
 
 export const realVerifyAdapter: VerifyAdapter = { verifyRepository };
@@ -57,11 +59,9 @@ export const realGithubAdapter: GithubAdapter = { createDraftPullRequest };
 export interface OrchestratorDeps {
   repositories: Repositories;
   agent: CodingAgent;
-  worktrees: WorktreeAdapter;
+  repo: RepoAdapter;
   verifier: VerifyAdapter;
   github: GithubAdapter;
-  /** Directory under which per-job worktrees are created. */
-  worktreesRoot: string;
   /** Directory for sanitized per-job agent logs. */
   logsDir?: string;
   /** Called on every persisted status change (including the initial queue). */
