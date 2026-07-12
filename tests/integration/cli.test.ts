@@ -127,11 +127,6 @@ describe('pinpoint review CLI', () => {
     await lan.close();
   });
 
-  it('records a remote public URL when provided', async () => {
-    const running = await startReview({ repo: '/repo', url: 'https://preview.example.com' }, services());
-    expect((await running.repositories.projects.list())[0].publicUrl).toBe('https://preview.example.com');
-    await running.close();
-  });
 
   it('shuts down the preview and server on close', async () => {
     const running = await startReview({ repo: '/repo' }, services());

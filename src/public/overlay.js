@@ -240,15 +240,21 @@
     ].join('\n');
     root.appendChild(style);
 
-    // On-page highlight layer: a hover outline over the element under the cursor
-    // and numbered pins over each selected element. Drawn inside the shadow root
-    // (viewport-fixed) so it tracks scroll/resize without leaking page styles.
-    var hlLayer = document.createElement('div');
-    hlLayer.className = 'hl-layer';
-    root.appendChild(hlLayer);
-    var hover = document.createElement('div');
-    hover.className = 'hl-hover';
-    hlLayer.appendChild(hover);
+    // On-page selection UX adapted from toss (UI only, no backend threads): one
+    // focus highlight follows the hovered element (or the active comment's
+    // element), each selected element keeps a persistent draft highlight, and a
+    // numbered pin anchors to it. Clicking a pin jumps to its comment in the
+    // panel. Markers live on document.body with absolute, document-relative
+    // coordinates so they stay anchored while scrolling; styling is fully inline
+    // so nothing leaks into the reviewed page.
+    var ACCENT2 = '#8b7dff';
+    var activeId = null;
+    var markers = [];
+
+    // Clear stale markers from a prior init (tests re-init repeatedly).
+    Array.prototype.slice.call(document.querySelectorAll('.pinpoint-marker')).forEach(function (n) {
+      n.remove();
+    });
 
     function elementFor(id) {
       try {
@@ -257,32 +263,92 @@
         return null;
       }
     }
-    function drawPins() {
-      Array.prototype.slice.call(hlLayer.querySelectorAll('.hl-pin')).forEach(function (p) {
-        p.remove();
+    function placeBox(node, rect) {
+      node.style.left = Math.round(rect.left + window.scrollX) + 'px';
+      node.style.top = Math.round(rect.top + window.scrollY) + 'px';
+      node.style.width = Math.max(Math.round(rect.width), 8) + 'px';
+      node.style.height = Math.max(Math.round(rect.height), 16) + 'px';
+    }
+
+    var focusBox = document.createElement('div');
+    focusBox.className = 'pinpoint-marker';
+    focusBox.setAttribute('data-pinpoint-ui', '1');
+    focusBox.style.cssText =
+      'position:absolute;display:none;pointer-events:none;box-sizing:border-box;border-radius:6px;' +
+      'border:2px solid ' + ACCENT + ';background:rgba(109,94,252,.12);' +
+      'z-index:2147483644;transition:all 60ms ease-out;';
+    document.body.appendChild(focusBox);
+
+    function showFocus(el) {
+      if (!el) return;
+      placeBox(focusBox, el.getBoundingClientRect());
+      focusBox.style.display = 'block';
+    }
+    function hideFocus() {
+      if (activeId) return; // keep the active comment's element highlighted
+      focusBox.style.display = 'none';
+    }
+    function focusComment(id) {
+      activeId = id;
+      showFocus(elementFor(id));
+      drawPins();
+      var item = root.querySelector('[data-item-id="' + id + '"]');
+      if (item) {
+        if (item.scrollIntoView) item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        var ta = item.querySelector('textarea');
+        if (ta) ta.focus();
+      }
+    }
+
+    function clearMarkers() {
+      markers.forEach(function (m) {
+        m.remove();
       });
+      markers = [];
+    }
+    function drawPins() {
+      clearMarkers();
+      // Drop a stale active id (e.g. its comment was just deleted).
+      if (activeId && !controller.annotations().some(function (a) { return a.elementId === activeId; })) {
+        activeId = null;
+        focusBox.style.display = 'none';
+      }
       controller.annotations().forEach(function (a, i) {
         var target = elementFor(a.elementId);
         if (!target) return;
-        var r = target.getBoundingClientRect();
-        var pin = document.createElement('div');
-        pin.className = 'hl-pin';
+        var rect = target.getBoundingClientRect();
+
+        var draft = document.createElement('div');
+        draft.className = 'pinpoint-marker';
+        draft.setAttribute('data-pinpoint-ui', '1');
+        draft.style.cssText =
+          'position:absolute;pointer-events:none;box-sizing:border-box;border-radius:4px;' +
+          'z-index:2147483645;border:2px solid ' + ACCENT2 + ';background:rgba(109,94,252,.2);';
+        placeBox(draft, rect);
+        document.body.appendChild(draft);
+        markers.push(draft);
+
+        var pin = document.createElement('button');
+        pin.type = 'button';
+        pin.className = 'pinpoint-marker';
+        pin.setAttribute('data-pinpoint-ui', '1');
         pin.textContent = String(i + 1);
-        pin.style.left = r.left + 'px';
-        pin.style.top = r.top + 'px';
-        hlLayer.appendChild(pin);
+        pin.style.cssText =
+          'position:absolute;transform:translate(-50%,-50%);width:20px;height:20px;padding:0;' +
+          'border-radius:999px;background:' + (a.elementId === activeId ? ACCENT2 : ACCENT) + ';' +
+          'color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;' +
+          'font:700 11px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);' +
+          'cursor:pointer;z-index:2147483646;';
+        pin.style.left = Math.round(rect.left + window.scrollX) + 'px';
+        pin.style.top = Math.round(rect.top + window.scrollY) + 'px';
+        pin.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          focusComment(a.elementId);
+        });
+        document.body.appendChild(pin);
+        markers.push(pin);
       });
-    }
-    function showHover(el) {
-      var r = el.getBoundingClientRect();
-      hover.style.display = 'block';
-      hover.style.left = r.left + 'px';
-      hover.style.top = r.top + 'px';
-      hover.style.width = r.width + 'px';
-      hover.style.height = r.height + 'px';
-    }
-    function hideHover() {
-      hover.style.display = 'none';
     }
 
     var panel = document.createElement('div');
@@ -314,6 +380,11 @@
       list.forEach(function (a, i) {
         var item = document.createElement('div');
         item.className = 'item';
+        item.setAttribute('data-item-id', a.elementId);
+        item.addEventListener('mouseenter', function () {
+          showFocus(elementFor(a.elementId));
+        });
+        item.addEventListener('mouseleave', hideFocus);
         var head = document.createElement('div');
         head.innerHTML =
           '<span class="pin">' + (i + 1) + '</span><span class="tag">&lt;' + a.tag + '&gt;</span>';
@@ -391,20 +462,23 @@
         if (!el) return;
         e.preventDefault();
         e.stopPropagation();
+        var id = el.getAttribute('data-pinpoint-id');
         controller.select(el);
+        // Jump straight to the new (or existing) comment's composer, toss-style.
+        focusComment(id);
       },
       true,
     );
 
-    // Hover highlight tracking.
+    // Hover highlight tracking on the page.
     document.addEventListener(
       'mouseover',
       function (e) {
         var target = e.target;
         if (!target || isPinpointUi(target)) return;
         var el = target.closest ? target.closest('[data-pinpoint-id]') : null;
-        if (el) showHover(el);
-        else hideHover();
+        if (el) showFocus(el);
+        else hideFocus();
       },
       true,
     );
@@ -412,22 +486,23 @@
       'mouseout',
       function (e) {
         var to = e.relatedTarget;
-        if (!to || !(to.closest && to.closest('[data-pinpoint-id]'))) hideHover();
+        if (!to || !(to.closest && to.closest('[data-pinpoint-id]'))) hideFocus();
       },
       true,
     );
-    // Keep pins/hover aligned as the page scrolls or resizes.
-    window.addEventListener(
-      'scroll',
-      function () {
-        hideHover();
-        drawPins();
-      },
-      true,
-    );
-    window.addEventListener('resize', function () {
-      hideHover();
+    // Clear the active comment on Escape (mirrors toss's dismiss).
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      activeId = null;
+      hideFocus();
       drawPins();
+    });
+    // Absolute markers stay anchored on scroll; only a resize changes element
+    // geometry, so redraw pins and the active focus box then.
+    window.addEventListener('resize', function () {
+      drawPins();
+      if (activeId) showFocus(elementFor(activeId));
+      else hideFocus();
     });
   }
 
