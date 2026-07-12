@@ -55,16 +55,26 @@ export async function createWorktree(input: CreateWorktreeInput): Promise<Worktr
 
 /** Repository-relative paths changed inside a worktree (staged or unstaged). */
 export async function changedFiles(worktreePath: string): Promise<string[]> {
-  const out = await gitOrThrow(worktreePath, ['status', '--porcelain']);
-  if (!out) return [];
-  return out
+  // Use the untrimmed output: porcelain lines begin with a 2-char status field
+  // plus a separating space, and the leading char may itself be a space.
+  const res = await runProcess('git', ['status', '--porcelain'], {
+    cwd: worktreePath,
+    timeoutMs: 60_000,
+  });
+  if (res.code !== 0) {
+    throw new Error(`git status failed: ${res.stderr || res.stdout}`);
+  }
+  return res.stdout
     .split('\n')
-    .map((line) => line.slice(3).trim())
+    .map((line) => line.replace(/\r$/, ''))
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.slice(3))
     .map((p) => {
       // Handle rename "old -> new" by taking the destination.
       const arrow = p.indexOf(' -> ');
       return arrow >= 0 ? p.slice(arrow + 4) : p;
     })
+    .map((p) => p.trim())
     .filter(Boolean);
 }
 
