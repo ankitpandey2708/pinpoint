@@ -120,6 +120,15 @@
           controller.render();
         }
       },
+      // Update state while typing WITHOUT re-rendering (a full render rebuilds
+      // the panel and would blur the field after every keystroke).
+      commentSilent: function (id, text) {
+        var a = find(id);
+        if (a) {
+          a.comment = text;
+          persist();
+        }
+      },
       remove: function (id) {
         annotations = annotations.filter(function (a) {
           return a.elementId !== id;
@@ -146,12 +155,16 @@
         persist();
         controller.render();
       },
+      setReviewerSilent: function (name) {
+        reviewerName = name || '';
+        persist();
+      },
       getReviewer: function () {
         return reviewerName;
       },
       submit: function () {
-        var name = (reviewerName || '').trim();
-        if (!name) return Promise.resolve({ ok: false, error: 'A reviewer name is required.' });
+        // Reviewer name is optional; default to Anonymous when left blank.
+        var name = (reviewerName || '').trim() || 'Anonymous';
         var withComments = annotations.filter(function (a) {
           return (a.comment || '').trim().length > 0;
         });
@@ -373,7 +386,7 @@
       var hint = document.createElement('p');
       hint.className = 'hint';
       hint.textContent = list.length
-        ? 'Click a comment to edit it. Add your name and submit when done.'
+        ? 'Click a comment to edit it. Submit when done (name optional).'
         : 'Click any element on the page to leave feedback.';
       body.appendChild(hint);
 
@@ -393,7 +406,7 @@
         ta.value = a.comment;
         ta.placeholder = 'What should change here?';
         ta.addEventListener('input', function () {
-          controllerCommentSilent(a.elementId, ta.value);
+          controller.commentSilent(a.elementId, ta.value);
         });
         item.appendChild(ta);
         var del = document.createElement('button');
@@ -407,10 +420,10 @@
       });
 
       var name = document.createElement('input');
-      name.placeholder = 'Your name';
+      name.placeholder = 'Your name (optional)';
       name.value = controller.getReviewer();
       name.addEventListener('input', function () {
-        controllerReviewerSilent(name.value);
+        controller.setReviewerSilent(name.value);
       });
       body.appendChild(name);
 
@@ -441,22 +454,6 @@
       drawPins();
     };
 
-    // Silent variants avoid a full re-render (which would blur the field) while typing.
-    function controllerCommentSilent(id, text) {
-      controller.comment(id, text);
-    }
-    function controllerReviewerSilent(name) {
-      controller.setReviewer(name);
-    }
-    // Re-point render for the silent helpers after first render assignment.
-    var realRender = controller.render;
-    controller.comment = (function (orig) {
-      return function (id, text) {
-        orig.call(controller, id, text);
-      };
-    })(controller.comment);
-
-    controller.render = realRender;
     controller.render();
 
     document.addEventListener(

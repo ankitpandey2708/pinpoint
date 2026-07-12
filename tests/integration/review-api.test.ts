@@ -84,11 +84,13 @@ describe('POST /api/projects/:projectId/reviews', () => {
     expect(review.annotations[0].mapping.tag).toBe('h1');
   });
 
-  it('rejects an empty reviewer name', async () => {
+  it('accepts an empty reviewer name and defaults to Anonymous', async () => {
     const body = validBody();
     body.reviewerName = '   ';
     const res = await request(app).post('/api/projects/proj_1/reviews').send(body);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    const all = await repositories.reviews.list();
+    expect(all[0].reviewerName).toBe('Anonymous');
   });
 
   it('rejects an annotation with an empty comment', async () => {

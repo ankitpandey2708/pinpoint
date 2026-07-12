@@ -82,11 +82,13 @@ async function submitReview(deps: ApiDeps, req: Request, res: Response): Promise
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const reviewerName = typeof body.reviewerName === 'string' ? body.reviewerName.trim() : '';
-  if (!reviewerName || reviewerName.length > MAX_REVIEWER) {
-    res.status(400).json({ error: 'a reviewer name is required' });
+  // Reviewer name is optional; default to Anonymous. Only length is enforced.
+  const rawReviewerName = typeof body.reviewerName === 'string' ? body.reviewerName.trim() : '';
+  if (rawReviewerName.length > MAX_REVIEWER) {
+    res.status(400).json({ error: 'reviewer name is too long' });
     return;
   }
+  const reviewerName = rawReviewerName || 'Anonymous';
 
   const rawAnnotations = Array.isArray(body.annotations) ? body.annotations : [];
   if (rawAnnotations.length === 0 || rawAnnotations.length > MAX_ANNOTATIONS) {
