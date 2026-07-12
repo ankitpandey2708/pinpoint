@@ -26,6 +26,8 @@ export interface ReviewOptions {
   repo: string;
   port?: number;
   host?: string;
+  /** Start a public Cloudflare tunnel automatically. Defaults to true. */
+  tunnel?: boolean;
 }
 
 /** A running server handle. */
@@ -213,9 +215,10 @@ export function buildProgram(onReview: (opts: ReviewOptions) => Promise<void>): 
     .argument('<repo>', 'path to a clean local Git repository to review')
     .option('--port <port>', 'port to bind the Pinpoint server to', (v) => Number(v))
     .option('--host <host>', 'host to bind to (use 0.0.0.0 to share on your LAN)')
+    .option('--no-tunnel', 'do not start a public Cloudflare tunnel')
     .description('Start an instrumented review preview and developer dashboard')
-    .action(async (repo: string, options: { port?: number; host?: string }) => {
-      await onReview({ repo, port: options.port, host: options.host });
+    .action(async (repo: string, options: { port?: number; host?: string; tunnel?: boolean }) => {
+      await onReview({ repo, port: options.port, host: options.host, tunnel: options.tunnel });
     });
 
   return program;

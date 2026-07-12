@@ -1,35 +1,49 @@
 #!/usr/bin/env node
 import { buildProgram, startReview, realServices, type RunningReview } from './cli/review';
+import { startTunnel, type Tunnel } from './lib/tunnel';
 
-/** CLI entry point: `pinpoint review <repo> [--port] [--host]`. */
+/* eslint-disable no-console */
+
+/** CLI entry point: `pinpoint review <repo> [--port] [--host] [--no-tunnel]`. */
 async function main(): Promise<void> {
   let running: RunningReview | undefined;
+  let tunnel: Tunnel | undefined;
 
   const program = buildProgram(async (opts) => {
     running = await startReview(opts, realServices(process.cwd()));
-    // eslint-disable-next-line no-console
     console.log(`\n  Pin Point is ready.\n`);
-    // eslint-disable-next-line no-console
-    console.log(`  Review link (send to your client): ${running.reviewUrl}`);
-    // eslint-disable-next-line no-console
-    console.log(`  Developer dashboard:                ${running.dashboardUrl}`);
-    if (opts.host && opts.host !== '127.0.0.1' && opts.host !== 'localhost') {
-      // eslint-disable-next-line no-console
-      console.log(`\n  Sharing on ${opts.host}. localhost is local-only; use a LAN IP or tunnel for remote clients.`);
+    console.log(`  Review link (local):    ${running.reviewUrl}`);
+    console.log(`  Developer dashboard:    ${running.dashboardUrl}`);
+
+    // A public Cloudflare tunnel is started automatically so the review link is
+    // reachable off this machine without a separate tool. Opt out with --no-tunnel.
+    // A tunnel failure (e.g. cloudflared not installed) never stops the server.
+    if (opts.tunnel !== false) {
+      const local = new URL(running.reviewUrl);
+      const target = `http://127.0.0.1:${local.port || 80}`;
+      try {
+        console.log(`\n  Starting public tunnel…`);
+        tunnel = await startTunnel(target);
+        const publicReview = `${tunnel.url}${local.pathname}`;
+        console.log(`  Review link (public):   ${publicReview}`);
+        console.log(`\n  Send the PUBLIC link to your client. The dashboard stays local-only.`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log(`  Tunnel unavailable (${msg}). Continuing with local URLs only.`);
+        console.log(`  Install cloudflared, or pass --no-tunnel to silence this.`);
+      }
+    } else if (opts.host && opts.host !== '127.0.0.1' && opts.host !== 'localhost') {
+      console.log(`\n  Sharing on ${opts.host}. localhost is local-only; use a LAN IP for remote clients.`);
     } else {
-      // eslint-disable-next-line no-console
-      console.log(`\n  localhost is local-only. Use --host 0.0.0.0 for LAN, or a tunnel for remote clients.`);
+      console.log(`\n  localhost is local-only (--no-tunnel). Use --host 0.0.0.0 for LAN.`);
     }
-    // eslint-disable-next-line no-console
     console.log(`\n  Press Ctrl+C to stop.\n`);
   });
 
   const shutdown = async (): Promise<void> => {
-    if (running) {
-      // eslint-disable-next-line no-console
-      console.log('\n  Shutting down…');
-      await running.close();
-    }
+    console.log('\n  Shutting down…');
+    if (tunnel) await tunnel.stop().catch(() => undefined);
+    if (running) await running.close();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown());
