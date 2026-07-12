@@ -133,6 +133,19 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
     verifier: realVerifyAdapter,
     github: realGithubAdapter,
     logsDir: services.logsDir,
+    // Surface job progress in the server terminal, including the draft PR link.
+    onStatus: (job) => {
+      if (job.status === 'pr-opened' && job.prUrl) {
+        // eslint-disable-next-line no-console
+        console.log(`\n  ✅ Draft PR ready for review ${job.reviewId}:\n     ${job.prUrl}\n`);
+      } else if (job.status === 'failed') {
+        // eslint-disable-next-line no-console
+        console.log(`\n  ❌ Fix job for review ${job.reviewId} failed: ${job.failureReason ?? 'unknown'}\n`);
+      } else {
+        // eslint-disable-next-line no-console
+        console.log(`  … review ${job.reviewId}: ${job.status}`);
+      }
+    },
   });
   // Any nonterminal jobs from a previous run are unrecoverable; mark them failed.
   await orchestrator.recoverInterrupted();
