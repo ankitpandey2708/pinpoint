@@ -15,7 +15,7 @@ import { ClaudeAgent } from '../agents/claude';
 import { checkGitHubAuth } from '../github/client';
 import {
   Orchestrator,
-  realWorktreeAdapter,
+  realRepoAdapter,
   realVerifyAdapter,
   realGithubAdapter,
 } from '../jobs/orchestrator';

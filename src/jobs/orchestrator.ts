@@ -228,98 +228,97 @@ export class Orchestrator {
   }
 
   private async runPipeline(jobId: string, review: SubmittedReview, project: Project): Promise<void> {
-    // 1. Prepare an isolated worktree from the review's exact base commit.
+    // 1. Create the generated branch directly in the repository (no worktree),
+    //    remembering the developer's current branch so we can restore it after.
     await this.setStatus(jobId, 'preparing');
-    await mkdir(this.deps.worktreesRoot, { recursive: true });
-    const branch = this.deps.worktrees.generateBranchName(review.id);
-    const worktreePath = join(this.deps.worktreesRoot, `${review.id}-${jobId}`);
-    const worktree = await this.deps.worktrees.createWorktree({
-      repoRoot: project.repoPath,
-      baseCommit: review.baseCommit,
+    const branch = this.deps.repo.generateBranchName(review.id);
+    const originalBranch = await this.deps.repo.currentBranch(project.repoPath);
+    await this.deps.repo.createReviewBranch(project.repoPath, branch, review.baseCommit);
+    await this.deps.repositories.jobs.update(jobId, {
       branch,
-      path: worktreePath,
-    });
-    await this.deps.repositories.jobs.update(jobId, {
-      branch: worktree.branch,
-      worktreePath: worktree.path,
       updatedAt: new Date().toISOString(),
     });
 
-    // Establish a clean, reproducible baseline before the agent edits anything.
-    // This also runs the detected install command so dependencies exist in a
-    // fresh worktree. Pre-existing failures must not be blamed on client feedback.
-    const repositoryInfo = infoForProject(project, worktree.path, review.baseCommit);
-    const baselineVerification = await this.deps.verifier.verifyRepository(
-      repositoryInfo,
-      worktree.path,
-    );
-    await this.deps.repositories.jobs.update(jobId, {
-      baselineVerification,
-      updatedAt: new Date().toISOString(),
-    });
-    if (!baselineVerification.ok) {
-      throw new JobError('repository baseline verification failed before agent execution');
-    }
-
-    // 2. Run the coding agent inside the worktree only.
-    await this.setStatus(jobId, 'running-agent');
-    const prompt = buildAgentPrompt({ review, verificationCommands: verificationCommands(project) });
-    const logPath = this.deps.logsDir ? join(this.deps.logsDir, `${jobId}.log`) : undefined;
-    if (this.deps.logsDir) await mkdir(this.deps.logsDir, { recursive: true });
-    const agentResult = await this.deps.agent.run({ prompt, cwd: worktree.path }, { logPath });
-    await this.deps.repositories.jobs.update(jobId, { logPath, updatedAt: new Date().toISOString() });
-    if (!agentResult.ok) {
-      throw new JobError(
-        agentResult.timedOut
-          ? 'the coding agent timed out'
-          : 'the coding agent did not complete successfully',
+    try {
+      // Establish a clean, reproducible baseline before the agent edits anything.
+      // Pre-existing failures must not be blamed on client feedback.
+      const repositoryInfo = infoForProject(project, project.repoPath, review.baseCommit);
+      const baselineVerification = await this.deps.verifier.verifyRepository(
+        repositoryInfo,
+        project.repoPath,
       );
+      await this.deps.repositories.jobs.update(jobId, {
+        baselineVerification,
+        updatedAt: new Date().toISOString(),
+      });
+      if (!baselineVerification.ok) {
+        throw new JobError('repository baseline verification failed before agent execution');
+      }
+
+      // 2. Run the coding agent in the repository, on the generated branch.
+      await this.setStatus(jobId, 'running-agent');
+      const prompt = buildAgentPrompt({ review, verificationCommands: verificationCommands(project) });
+      const logPath = this.deps.logsDir ? join(this.deps.logsDir, `${jobId}.log`) : undefined;
+      if (this.deps.logsDir) await mkdir(this.deps.logsDir, { recursive: true });
+      const agentResult = await this.deps.agent.run({ prompt, cwd: project.repoPath }, { logPath });
+      await this.deps.repositories.jobs.update(jobId, { logPath, updatedAt: new Date().toISOString() });
+      if (!agentResult.ok) {
+        throw new JobError(
+          agentResult.timedOut
+            ? 'the coding agent timed out'
+            : 'the coding agent did not complete successfully',
+        );
+      }
+
+      // 3. Require real changes before doing any further work.
+      const changed = await this.deps.repo.changedFiles(project.repoPath);
+      if (changed.length === 0) {
+        throw new JobError('the agent made no changes; no pull request was created');
+      }
+      await assertSafeChangedFiles(project.repoPath, changed);
+      await this.deps.repositories.jobs.update(jobId, {
+        changedFiles: changed,
+        updatedAt: new Date().toISOString(),
+      });
+
+      // 4. Verify BEFORE any commit/push. Failed verification blocks the PR.
+      await this.setStatus(jobId, 'verifying');
+      const verification = await this.deps.verifier.verifyRepository(repositoryInfo, project.repoPath);
+      await this.deps.repositories.jobs.update(jobId, {
+        verification,
+        updatedAt: new Date().toISOString(),
+      });
+      if (!verification.ok) {
+        throw new JobError('verification failed; no pull request was created');
+      }
+
+      // 5. Commit on the generated branch, push (never force), open a DRAFT PR.
+      const commit = await this.deps.repo.commitAll(
+        project.repoPath,
+        `Pinpoint: apply visual feedback from ${review.reviewerName} (${review.id})`,
+      );
+      if (!commit.committed) {
+        throw new JobError('no changes to commit; no pull request was created');
+      }
+
+      await this.setStatus(jobId, 'pushing');
+      const pr = await this.deps.github.createDraftPullRequest({
+        cwd: project.repoPath,
+        branch,
+        baseBranch: review.baseBranch,
+        title: `Apply visual feedback from ${review.reviewerName}`,
+        body: prBody(review, changed, verification),
+        repo: project.githubRepo,
+        remote: 'origin',
+      });
+
+      // 6. Record the PR.
+      await this.setStatus(jobId, 'pr-opened', { prUrl: pr.url, prNumber: pr.number });
+    } finally {
+      // Always return the developer's checkout to its original branch, discarding
+      // any uncommitted edits. The generated branch (and its commit) remain both
+      // locally and on the remote so the pull request is unaffected.
+      await this.deps.repo.restoreBranch(project.repoPath, originalBranch).catch(() => undefined);
     }
-
-    // 3. Require real changes before doing any further work.
-    const changed = await this.deps.worktrees.changedFiles(worktree.path);
-    if (changed.length === 0) {
-      throw new JobError('the agent made no changes; no pull request was created');
-    }
-    await assertSafeChangedFiles(worktree.path, changed);
-    await this.deps.repositories.jobs.update(jobId, {
-      changedFiles: changed,
-      updatedAt: new Date().toISOString(),
-    });
-
-    // 4. Verify BEFORE any commit/push. Failed verification blocks the PR.
-    await this.setStatus(jobId, 'verifying');
-    const verification = await this.deps.verifier.verifyRepository(repositoryInfo, worktree.path);
-    await this.deps.repositories.jobs.update(jobId, {
-      verification,
-      updatedAt: new Date().toISOString(),
-    });
-    if (!verification.ok) {
-      throw new JobError('verification failed; no pull request was created');
-    }
-
-    // 5. Commit, push (never force), and open a DRAFT PR.
-    const commit = await this.deps.worktrees.commitAll(
-      worktree.path,
-      `Pinpoint: apply visual feedback from ${review.reviewerName} (${review.id})`,
-    );
-    if (!commit.committed) {
-      throw new JobError('no changes to commit; no pull request was created');
-    }
-
-    await this.setStatus(jobId, 'pushing');
-    const pr = await this.deps.github.createDraftPullRequest({
-      cwd: worktree.path,
-      branch: worktree.branch,
-      baseBranch: review.baseBranch,
-      title: `Apply visual feedback from ${review.reviewerName}`,
-      body: prBody(review, changed, verification),
-      repo: project.githubRepo,
-      remote: 'origin',
-    });
-
-    // 6. Record the PR and clean up the successful worktree.
-    await this.setStatus(jobId, 'pr-opened', { prUrl: pr.url, prNumber: pr.number });
-    await this.deps.worktrees.removeWorktree(project.repoPath, worktree.path);
   }
 }
