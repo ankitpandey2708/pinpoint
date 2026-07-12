@@ -29,8 +29,13 @@ async function main(): Promise<void> {
         console.log(`\n  Send the PUBLIC link to your client. The dashboard stays local-only.`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        const notFound = (err as NodeJS.ErrnoException)?.code === 'ENOENT';
         console.log(`  Tunnel unavailable (${msg}). Continuing with local URLs only.`);
-        console.log(`  Install cloudflared, or pass --no-tunnel to silence this.`);
+        console.log(
+          notFound
+            ? `  cloudflared is not on PATH — install it, or pass --no-tunnel.`
+            : `  Usually a transient trycloudflare hiccup — just re-run, or pass --no-tunnel.`,
+        );
       }
     } else if (opts.host && opts.host !== '127.0.0.1' && opts.host !== 'localhost') {
       console.log(`\n  Sharing on ${opts.host}. localhost is local-only; use a LAN IP for remote clients.`);
