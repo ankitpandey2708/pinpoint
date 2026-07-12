@@ -3,7 +3,7 @@
  * per-annotation source mappings and confidence, and lets the developer start a
  * fix job (Generate Fix PR) — the only place an agent can be triggered. The
  * developer token is injected by the server into window.__PINPOINT_DASH__ and
- * is sent only on mutation requests.
+ * is sent on every developer API request.
  */
 (function () {
   'use strict';
@@ -27,7 +27,9 @@
   }
 
   function getJSON(url) {
-    return fetch(url, { headers: { accept: 'application/json' } }).then(function (r) {
+    return fetch(url, {
+      headers: { accept: 'application/json', 'x-pinpoint-token': cfg.devToken || '' },
+    }).then(function (r) {
       if (!r.ok) throw new Error('request failed: ' + r.status);
       return r.json();
     });

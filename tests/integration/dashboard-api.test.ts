@@ -3,7 +3,7 @@ import request from 'supertest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createApp, type OrchestratorLike } from '../../src/server/app';
+import { createApp, isLoopbackAddress, type OrchestratorLike } from '../../src/server/app';
 import { createRepositories, type Repositories } from '../../src/storage/repositories';
 import { PreviewRegistry } from '../../src/server/preview-registry';
 import { entityId } from '../../src/lib/ids';
@@ -101,8 +101,23 @@ afterEach(async () => {
 });
 
 describe('dashboard read APIs', () => {
+  it('recognizes only loopback addresses as local dashboard clients', () => {
+    expect(isLoopbackAddress('127.0.0.1')).toBe(true);
+    expect(isLoopbackAddress('::1')).toBe(true);
+    expect(isLoopbackAddress('::ffff:127.0.0.1')).toBe(true);
+    expect(isLoopbackAddress('192.168.1.25')).toBe(false);
+    expect(isLoopbackAddress('203.0.113.10')).toBe(false);
+  });
+
+  it('rejects dashboard read APIs without the developer token', async () => {
+    expect((await request(app).get('/api/projects')).status).toBe(401);
+    expect((await request(app).get('/api/reviews')).status).toBe(401);
+    expect((await request(app).get('/api/reviews/rev_1')).status).toBe(401);
+    expect((await request(app).get('/api/jobs/job_1')).status).toBe(401);
+  });
+
   it('lists projects', async () => {
-    const res = await request(app).get('/api/projects');
+    const res = await request(app).get('/api/projects').set('x-pinpoint-token', DEV_TOKEN);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].id).toBe('proj_1');
@@ -111,7 +126,7 @@ describe('dashboard read APIs', () => {
 
   it('lists review summaries with annotation counts', async () => {
     await repositories.reviews.insert(review('rev_1', 'direct'));
-    const res = await request(app).get('/api/reviews');
+    const res = await request(app).get('/api/reviews').set('x-pinpoint-token', DEV_TOKEN);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].id).toBe('rev_1');
@@ -121,7 +136,7 @@ describe('dashboard read APIs', () => {
 
   it('returns full review detail with mappings and confidence', async () => {
     await repositories.reviews.insert(review('rev_1', 'direct'));
-    const res = await request(app).get('/api/reviews/rev_1');
+    const res = await request(app).get('/api/reviews/rev_1').set('x-pinpoint-token', DEV_TOKEN);
     expect(res.status).toBe(200);
     expect(res.body.review.id).toBe('rev_1');
     expect(res.body.review.annotations[0].mapping.sourceFile).toBe('index.html');
@@ -130,7 +145,7 @@ describe('dashboard read APIs', () => {
   });
 
   it('returns 404 for an unknown review detail', async () => {
-    const res = await request(app).get('/api/reviews/nope');
+    const res = await request(app).get('/api/reviews/nope').set('x-pinpoint-token', DEV_TOKEN);
     expect(res.status).toBe(404);
   });
 
@@ -141,11 +156,11 @@ describe('dashboard read APIs', () => {
       .set('x-pinpoint-token', DEV_TOKEN)
       .send({});
     const jobId = create.body.id as string;
-    const ok = await request(app).get(`/api/jobs/${jobId}`);
+    const ok = await request(app).get(`/api/jobs/${jobId}`).set('x-pinpoint-token', DEV_TOKEN);
     expect(ok.status).toBe(200);
     expect(ok.body.id).toBe(jobId);
     expect(ok.body.status).toBe('queued');
-    const missing = await request(app).get('/api/jobs/nope');
+    const missing = await request(app).get('/api/jobs/nope').set('x-pinpoint-token', DEV_TOKEN);
     expect(missing.status).toBe(404);
   });
 });

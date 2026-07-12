@@ -257,10 +257,17 @@ export function createApiRouter(deps: ApiDeps): Router {
       fn(deps, req, res).catch(next);
     };
 
-  router.get('/projects', wrap(listProjects));
-  router.get('/reviews', wrap(listReviews));
-  router.get('/reviews/:id', wrap(getReviewDetail));
-  router.get('/jobs/:id', wrap(getJob));
+  const developerRead =
+    (fn: (deps: ApiDeps, req: Request, res: Response) => Promise<void>) =>
+    (req: Request, res: Response, next: NextFunction) => {
+      if (!requireDevToken(deps, req, res)) return;
+      fn(deps, req, res).catch(next);
+    };
+
+  router.get('/projects', developerRead(listProjects));
+  router.get('/reviews', developerRead(listReviews));
+  router.get('/reviews/:id', developerRead(getReviewDetail));
+  router.get('/jobs/:id', developerRead(getJob));
 
   // Developer-approved job initiation (Task 8, protected).
   router.post('/reviews/:id/jobs', wrap(startJob));

@@ -133,7 +133,7 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
   const shown = displayHost(host);
   const origin = `http://${shown}:${server.port}`;
   const reviewUrl = `${origin}/review/${project.id}`;
-  const dashboardUrl = `${origin}/dashboard`;
+  const dashboardUrl = `${origin}/dashboard?token=${encodeURIComponent(devToken)}`;
 
   const close = async (): Promise<void> => {
     await orchestrator.settleAll();
