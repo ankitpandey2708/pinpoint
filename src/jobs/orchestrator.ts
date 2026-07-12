@@ -245,6 +245,22 @@ export class Orchestrator {
       updatedAt: new Date().toISOString(),
     });
 
+    // Establish a clean, reproducible baseline before the agent edits anything.
+    // This also runs the detected install command so dependencies exist in a
+    // fresh worktree. Pre-existing failures must not be blamed on client feedback.
+    const repositoryInfo = infoForProject(project, worktree.path, review.baseCommit);
+    const baselineVerification = await this.deps.verifier.verifyRepository(
+      repositoryInfo,
+      worktree.path,
+    );
+    await this.deps.repositories.jobs.update(jobId, {
+      baselineVerification,
+      updatedAt: new Date().toISOString(),
+    });
+    if (!baselineVerification.ok) {
+      throw new JobError('repository baseline verification failed before agent execution');
+    }
+
     // 2. Run the coding agent inside the worktree only.
     await this.setStatus(jobId, 'running-agent');
     const prompt = buildAgentPrompt({ review, verificationCommands: verificationCommands(project) });
@@ -272,8 +288,7 @@ export class Orchestrator {
 
     // 4. Verify BEFORE any commit/push. Failed verification blocks the PR.
     await this.setStatus(jobId, 'verifying');
-    const info = infoForProject(project, worktree.path, review.baseCommit);
-    const verification = await this.deps.verifier.verifyRepository(info, worktree.path);
+    const verification = await this.deps.verifier.verifyRepository(repositoryInfo, worktree.path);
     await this.deps.repositories.jobs.update(jobId, {
       verification,
       updatedAt: new Date().toISOString(),

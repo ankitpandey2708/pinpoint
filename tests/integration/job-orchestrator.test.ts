@@ -134,6 +134,7 @@ beforeEach(async () => {
   statuses = [];
   pushCalls = 0;
   removed = [];
+  steps = [];
 });
 
 afterEach(async () => {
@@ -154,6 +155,8 @@ describe('Orchestrator', () => {
     expect(final.prNumber).toBe(7);
     expect(final.changedFiles).toEqual(['index.html']);
     expect(final.branch).toContain('pinpoint/review-');
+    expect(final.baselineVerification?.ok).toBe(true);
+    expect(steps).toEqual(['verify', 'agent', 'verify']);
 
     expect(statuses).toEqual([
       'queued',
@@ -202,6 +205,19 @@ describe('Orchestrator', () => {
     expect(pushCalls).toBe(0);
     expect(removed).toHaveLength(0);
     expect(statuses).not.toContain('pr-opened');
+  });
+
+  it('fails before running the agent when the clean baseline does not pass', async () => {
+    await repositories.reviews.insert(makeReview('rev_1'));
+    const orch = new Orchestrator(buildDeps({ baselineOk: false }));
+    const job = await orch.startJobForReview('rev_1');
+    await orch.settle(job.id);
+    const final = (await repositories.jobs.get(job.id))!;
+    expect(final.status).toBe('failed');
+    expect(final.baselineVerification?.ok).toBe(false);
+    expect(final.failureReason).toMatch(/baseline/i);
+    expect(steps).toEqual(['verify']);
+    expect(pushCalls).toBe(0);
   });
 
   it('fails when the agent makes no changes and never verifies or pushes', async () => {

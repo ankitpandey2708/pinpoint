@@ -149,6 +149,7 @@ export interface AgentJob {
   branch?: string;
   worktreePath?: string;
   changedFiles?: string[];
+  baselineVerification?: VerificationResult;
   verification?: VerificationResult;
   prUrl?: string;
   prNumber?: number;
