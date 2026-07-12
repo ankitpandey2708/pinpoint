@@ -32,6 +32,7 @@ export interface RepoAdapter {
   changedFiles(repoRoot: string): Promise<string[]>;
   commitAll(repoRoot: string, message: string): Promise<{ committed: boolean; sha?: string }>;
   restoreBranch(repoRoot: string, branch: string): Promise<void>;
+  resetHard(repoRoot: string): Promise<void>;
 }
 
 export interface VerifyAdapter {
@@ -48,6 +49,7 @@ export const realRepoAdapter: RepoAdapter = {
   changedFiles,
   commitAll,
   restoreBranch,
+  resetHard,
 };
 
 export const realVerifyAdapter: VerifyAdapter = { verifyRepository };
