@@ -246,22 +246,12 @@ export class Orchestrator {
         branch,
         updatedAt: new Date().toISOString(),
       });
-      // Establish a clean, reproducible baseline before the agent edits anything.
-      // Pre-existing failures must not be blamed on client feedback.
       const repositoryInfo = infoForProject(project, project.repoPath, review.baseCommit);
-      const baselineVerification = await this.deps.verifier.verifyRepository(
-        repositoryInfo,
-        project.repoPath,
-      );
-      await this.deps.repositories.jobs.update(jobId, {
-        baselineVerification,
-        updatedAt: new Date().toISOString(),
-      });
-      if (!baselineVerification.ok) {
-        throw new JobError('repository baseline verification failed before agent execution');
-      }
 
       // 2. Run the coding agent in the repository, on the generated branch.
+      // We deliberately skip a pre-agent baseline on the happy path: gates would
+      // otherwise run twice. If the post-change verify fails, we run the baseline
+      // then (below) to attribute the failure.
       await this.setStatus(jobId, 'running-agent');
       const prompt = buildAgentPrompt({ review, verificationCommands: verificationCommands(project) });
       const logPath = this.deps.logsDir ? join(this.deps.logsDir, `${jobId}.log`) : undefined;
@@ -302,7 +292,20 @@ export class Orchestrator {
         updatedAt: new Date().toISOString(),
       });
       if (!verification.ok) {
-        throw new JobError('verification failed; no pull request was created');
+        // Only now spend time on a baseline — reset the tree to the clean base
+        // commit (the agent has no shell, so its edits are all reverted) and run
+        // the gates there to attribute the failure. No PR is created either way.
+        await this.deps.repo.resetHard(project.repoPath);
+        const baseline = await this.deps.verifier.verifyRepository(repositoryInfo, project.repoPath);
+        await this.deps.repositories.jobs.update(jobId, {
+          baselineVerification: baseline,
+          updatedAt: new Date().toISOString(),
+        });
+        throw new JobError(
+          baseline.ok
+            ? 'verification failed on the change; no pull request was created'
+            : 'the repository was already failing at the base commit (not caused by this feedback); no pull request was created',
+        );
       }
 
       // 5. Commit on the generated branch, push (never force), open a DRAFT PR.
