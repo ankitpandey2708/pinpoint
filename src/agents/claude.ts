@@ -27,17 +27,14 @@ function claudeArgs(): string[] {
     '30',
     '--permission-mode',
     'acceptEdits',
-    // Git history/network tools are intentionally excluded: Pinpoint owns
-    // commit, push, and PR creation. The agent may read, search, edit, and run
-    // declared npm checks only.
+    // Pinpoint owns all command execution, verification, Git, and GitHub work.
+    // Claude may only inspect and edit files inside the isolated worktree.
     '--allowedTools',
     'Read',
     'Glob',
     'Grep',
     'Edit',
     'Write',
-    'Bash(npm test*)',
-    'Bash(npm run *)',
   ];
 }
 

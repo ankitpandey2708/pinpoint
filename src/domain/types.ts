@@ -56,7 +56,6 @@ export interface Project {
   framework: Framework;
   htmlEntry?: string;
   commands: RepositoryCommands;
-  publicUrl?: string; // remote proxy mode
   host: string;
   port: number;
   createdAt: string;

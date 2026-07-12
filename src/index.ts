@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { buildProgram, startReview, realServices, type RunningReview } from './cli/review';
 
-/** CLI entry point: `pinpoint review <repo> [--url] [--port] [--host]`. */
+/** CLI entry point: `pinpoint review <repo> [--port] [--host]`. */
 async function main(): Promise<void> {
   let running: RunningReview | undefined;
 

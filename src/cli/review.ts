@@ -24,7 +24,6 @@ import type { Project, RepositoryInfo } from '../domain/types';
 
 export interface ReviewOptions {
   repo: string;
-  url?: string;
   port?: number;
   host?: string;
 }
@@ -101,7 +100,6 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
     framework: info.framework,
     htmlEntry: info.htmlEntry,
     commands: info.commands,
-    publicUrl: opts.url,
     host,
     port,
     createdAt: new Date().toISOString(),
@@ -213,12 +211,11 @@ export function buildProgram(onReview: (opts: ReviewOptions) => Promise<void>): 
   program
     .command('review')
     .argument('<repo>', 'path to a clean local Git repository to review')
-    .option('--url <public-url>', 'public URL to proxy instead of serving the local build')
     .option('--port <port>', 'port to bind the Pinpoint server to', (v) => Number(v))
     .option('--host <host>', 'host to bind to (use 0.0.0.0 to share on your LAN)')
     .description('Start an instrumented review preview and developer dashboard')
-    .action(async (repo: string, options: { url?: string; port?: number; host?: string }) => {
-      await onReview({ repo, url: options.url, port: options.port, host: options.host });
+    .action(async (repo: string, options: { port?: number; host?: string }) => {
+      await onReview({ repo, port: options.port, host: options.host });
     });
 
   return program;

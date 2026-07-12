@@ -18,4 +18,9 @@ export const EXCLUDED_DIRS = new Set([
   'coverage',
   'data',
   '.pinpoint',
+  '.github',
+  '.ssh',
+  '.aws',
+  '.azure',
+  '.vercel',
 ]);

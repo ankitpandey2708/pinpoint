@@ -1,5 +1,5 @@
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { join, relative, sep } from 'node:path';
+import { basename, join, relative, sep } from 'node:path';
 import { instrumentHtml } from '../instrumentation/html';
 import { instrumentJsx } from '../instrumentation/jsx';
 import { EXCLUDED_DIRS, OVERLAY_URLS } from './constants';
@@ -25,11 +25,15 @@ export interface CreatePreviewOptions {
 
 const HTML_EXT = /\.html?$/i;
 const JSX_EXT = /\.(jsx|tsx)$/i;
+const SENSITIVE_FILE = /^(?:\.env(?:\..*)?|\.(?:npmrc|yarnrc|pnpmrc|netrc)|.*\.(?:pem|key|p12|pfx))$/i;
 
 function isExcluded(srcRoot: string, source: string): boolean {
   const rel = relative(srcRoot, source);
   if (rel === '') return false;
-  return rel.split(sep).some((segment) => EXCLUDED_DIRS.has(segment));
+  return (
+    rel.split(sep).some((segment) => EXCLUDED_DIRS.has(segment)) ||
+    SENSITIVE_FILE.test(basename(source))
+  );
 }
 
 /**

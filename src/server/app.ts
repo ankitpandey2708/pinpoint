@@ -66,13 +66,9 @@ export function createApp(deps: ServerDeps): Express {
     res.type('text/html; charset=utf-8').send(html);
   });
 
-  app.get('/', (req, res) => {
-    if (!isLoopbackAddress(req.socket.remoteAddress)) {
-      res.status(404).send('not found');
-      return;
-    }
-    res.redirect(`/dashboard?token=${encodeURIComponent(deps.devToken)}`);
-  });
+  // Never reveal the tokenized dashboard URL from a guessable route. The CLI
+  // prints the capability URL directly to the developer.
+  app.get('/', (_req, res) => res.status(404).send('not found'));
 
   return app;
 }
