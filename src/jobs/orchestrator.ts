@@ -8,6 +8,7 @@ import {
   changedFiles,
   commitAll,
   restoreBranch,
+  resetHard,
 } from '../git/repo';
 import { verifyRepository, type VerifyOptions } from '../git/verify';
 import { assertSafeChangedFiles } from '../git/change-policy';
