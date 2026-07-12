@@ -1,6 +1,30 @@
-import { open, readFile, rename, mkdir } from 'node:fs/promises';
+import { open, readFile, rename, mkdir, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { dirname, basename, join } from 'node:path';
+
+const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Rename with a short retry loop. On Windows an atomic rename over an existing
+ * file transiently fails with EPERM/EACCES/EBUSY when another handle holds the
+ * destination — the search indexer (the repo lives under Downloads), antivirus,
+ * or a concurrent dashboard read. Retrying with backoff rides out these locks.
+ */
+async function renameWithRetry(from: string, to: string, attempts = 10): Promise<void> {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await rename(from, to);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      const retryable = code === 'EPERM' || code === 'EACCES' || code === 'EBUSY';
+      if (!retryable || i === attempts - 1) throw err;
+      // eslint-disable-next-line no-await-in-loop
+      await delay(30 * (i + 1));
+    }
+  }
+}
 
 /**
  * Generic append/update JSON collection persisted as a formatted JSON array.
@@ -87,6 +111,12 @@ export class JsonStore<T extends { id: string }> {
     } finally {
       await handle.close();
     }
-    await rename(tmp, this.filePath);
+    try {
+      await renameWithRetry(tmp, this.filePath);
+    } catch (err) {
+      // Don't leave the temp file behind if the rename ultimately failed.
+      await rm(tmp, { force: true }).catch(() => undefined);
+      throw err;
+    }
   }
 }
