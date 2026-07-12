@@ -226,15 +226,26 @@ The dashboard clearly marks source mappings as either:
 - approximate: inferred from selectors, classes, text, route, and repository search;
 - unresolved: no useful source candidate was found.
 
-Submitting feedback does not automatically execute a coding agent.
+The dashboard is where the developer watches each job's progress and reviews its
+result. Submitting feedback automatically starts the coding job (section 8), so
+by the time the developer opens the dashboard a run may already be in progress or
+finished.
 
-## 8. Developer Starts the Coding Job
+## 8. Submission Automatically Starts the Coding Job
 
-After inspecting the feedback, the developer clicks **Generate Fix PR**.
+Submitting a review automatically starts the coding job whenever at least one
+annotation resolved to a source location. There is no manual approval click; the
+autonomous flow runs the agent, verifies, and opens a draft pull request on its
+own.
 
-This approval boundary prevents a client from directly executing code or starting jobs against the developer's repository.
+The **draft pull request is the human review gate**. The developer reviews it on
+GitHub and decides whether to merge — the system never merges automatically and
+never force-pushes. Because agent edits happen only in a throwaway worktree built
+from the review's exact commit, and failed verification blocks the push, a client
+submission cannot damage the developer's working tree or land unreviewed changes.
 
-One submitted review can create at most one draft pull request unless the developer explicitly retries a failed job.
+One submitted review creates at most one draft pull request unless the developer
+explicitly retries a failed job from the dashboard.
 
 ## 9. Tool Creates an Isolated Worktree
 
@@ -370,10 +381,12 @@ Storage is accessed through an interface so a hosted database such as Postgres c
 
 ## Safety Rules
 
-- Client submission never directly runs the coding agent.
-- The developer must approve a job from the dashboard.
+- A client submission may start the coding agent automatically, but only ever
+  produces a draft pull request — the draft PR is the human review gate.
 - Coding happens in an isolated Git worktree.
 - The original working directory is not edited.
+- The agent may not touch execution, credential, dependency, or Git-control
+  files, and symlink changes are rejected (changes must stay inside the worktree).
 - The repository must be clean before creating a review.
 - GitHub and coding-agent credentials are never sent to the client.
 - Failed tests or builds prevent pushing and PR creation.
@@ -411,8 +424,8 @@ The first version is successful when it can demonstrate this complete path:
 3. Let a client click multiple elements and write feedback.
 4. Preserve annotations as browser drafts until submission.
 5. Save the submitted review to JSON.
-6. Display the review and source mappings in a developer dashboard.
-7. Create an isolated worktree after developer approval.
+6. Display the review, source mappings, and job status in a developer dashboard.
+7. Automatically create an isolated worktree when the review is submitted.
 8. Run Claude Code against the grouped feedback.
 9. Run the repository's verification commands.
 10. Push a generated branch and open a draft GitHub pull request.

@@ -7,8 +7,8 @@ verifies the result, and opens a **draft GitHub pull request** — you decide wh
 to merge.
 
 - Client never needs technical knowledge, a browser extension, or GitHub access.
-- A client submission **never** runs a coding agent. Only the developer dashboard
-  can trigger **Generate Fix PR**.
+- A client submission **automatically** runs the coding agent and opens a draft
+  PR. The **draft PR is the human review gate** — Pin Point never merges it for you.
 - Agent edits happen only in a throwaway worktree based on the review's exact
   commit. Your working directory is never touched.
 - Failed tests/build block the push and PR. Pull requests are always drafts. Pin
@@ -73,20 +73,22 @@ the local repo), `--port <port>`, `--host <host>`.
 1. **Client reviews.** Opens the review link, clicks elements, comments, enters a
    name, and submits. Comments are kept as a browser draft (surviving refreshes)
    until submission, then stored as JSON.
-2. **Developer inspects.** The dashboard lists reviews with per-annotation source
-   mappings and a confidence badge (`direct` / `approximate` / `unresolved`).
-3. **Developer approves.** Click **Generate Fix PR**. Pin Point creates a worktree
-   from the review's commit, runs Claude Code scoped to the feedback, verifies
+2. **Fix runs automatically.** On submission Pin Point creates a worktree from the
+   review's commit, runs Claude Code scoped to the feedback, verifies
    (test/lint/typecheck/build as available), commits, pushes a generated
-   `pinpoint/review-*` branch, and opens a **draft** PR.
+   `pinpoint/review-*` branch, and opens a **draft** PR — no manual trigger.
+3. **Developer inspects.** The dashboard lists reviews with per-annotation source
+   mappings, a confidence badge (`direct` / `approximate` / `unresolved`), and the
+   live job status; a failed run can be retried from here.
 4. **Developer decides.** Review the draft on GitHub and merge, revise, or close.
 
 ## Local demo walkthrough
 
-A full local run against Pin Point's own repository. Everything is loopback-only
-with no network side effects until you explicitly click **Generate Fix PR** with
-`gh`/`claude` authenticated. Install/verify and start the server as above (the
-working tree must be clean first), then play both roles.
+A full local run against Pin Point's own repository. Everything is loopback-only;
+the coding job runs automatically on submission, so it only reaches out to
+GitHub/Claude if `gh`/`claude` are authenticated (otherwise the job simply fails
+at that step and can be retried). Install/verify and start the server as above
+(the working tree must be clean first), then play both roles.
 
 **Act as the client:**
 
@@ -102,8 +104,9 @@ working tree must be clean first), then play both roles.
 1. Open the **dashboard**.
 2. Select the review. Each comment shows its source mapping back to `index.html`
    with a `direct` confidence badge and a source chip like `index.html:42`.
-3. Click **Generate Fix PR**. Watch the job move through
-   `preparing → running-agent → verifying → pushing → pr-opened`.
+3. The job already started on submission — watch it move through
+   `preparing → running-agent → verifying → pushing → pr-opened` (use **Retry Fix
+   PR** if a run failed).
 4. On success the dashboard shows a **draft pull request** link. Your local `main`
    is untouched; the change lives on a generated `pinpoint/review-*` branch.
 
