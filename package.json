@@ -1,0 +1,33 @@
+{
+  "name": "pinpoint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first visual review tool that turns element-specific client feedback into draft GitHub pull requests.",
+  "bin": {
+    "pinpoint": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.25.6",
+    "@babel/traverse": "^7.25.6",
+    "@babel/types": "^7.25.6",
+    "commander": "^12.1.0",
+    "express": "^4.21.0",
+    "http-proxy": "^1.18.1",
+    "magic-string": "^0.30.11",
+    "parse5": "^7.1.2"
+  },
+  "devDependencies": {
+    "@types/babel__traverse": "^7.20.6",
+    "@types/express": "^4.17.21",
+    "@types/http-proxy": "^1.17.15",
+    "@types/node": "^22.7.4",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
