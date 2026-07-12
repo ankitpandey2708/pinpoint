@@ -81,7 +81,9 @@ describe('self-review smoke against the real landing page', () => {
     expect(submit.status).toBe(201);
     const reviewId = submit.body.id as string;
 
-    const detail = await request(app).get(`/api/reviews/${reviewId}`);
+    const detail = await request(app)
+      .get(`/api/reviews/${reviewId}`)
+      .set('x-pinpoint-token', 'devtok');
     expect(detail.status).toBe(200);
     expect(detail.body.review.annotations).toHaveLength(2);
     for (const a of detail.body.review.annotations) {
@@ -91,7 +93,7 @@ describe('self-review smoke against the real landing page', () => {
     }
 
     // And the review list summarizes it as fully resolved.
-    const list = await request(app).get('/api/reviews');
+    const list = await request(app).get('/api/reviews').set('x-pinpoint-token', 'devtok');
     expect(list.body[0].annotationCount).toBe(2);
     expect(list.body[0].resolvedCount).toBe(2);
   });
