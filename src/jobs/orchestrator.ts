@@ -28,7 +28,6 @@ import type {
 /** Adapters over the git/verify/github modules, injectable for tests. */
 export interface RepoAdapter {
   generateBranchName(seed: string): string;
-  currentBranch(repoRoot: string): Promise<string>;
   createReviewBranch(repoRoot: string, branch: string, baseCommit: string): Promise<void>;
   changedFiles(repoRoot: string): Promise<string[]>;
   commitAll(repoRoot: string, message: string): Promise<{ committed: boolean; sha?: string }>;
@@ -328,10 +327,13 @@ export class Orchestrator {
       // 6. Record the PR.
       await this.setStatus(jobId, 'pr-opened', { prUrl: pr.url, prNumber: pr.number });
     } finally {
-      // Always return the developer's checkout to its original branch, discarding
-      // any uncommitted edits. The generated branch (and its commit) remain both
-      // locally and on the remote so the pull request is unaffected.
-      await this.deps.repo.restoreBranch(project.repoPath, originalBranch).catch(() => undefined);
+      // Always return the developer's checkout to the review's base branch (e.g.
+      // main), discarding any uncommitted edits — success or failure. Restoring
+      // to the recorded base branch (not the branch that happened to be checked
+      // out) avoids getting stranded on a stale generated branch from a prior job.
+      // The generated branch and its commit remain locally and on the remote so
+      // the pull request is unaffected.
+      await this.deps.repo.restoreBranch(project.repoPath, review.baseBranch).catch(() => undefined);
     }
   }
 }
