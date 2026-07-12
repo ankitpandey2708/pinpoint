@@ -176,7 +176,7 @@
                   /* ignore */
                 }
                 controller.render();
-                return { ok: true, id: data && data.id };
+                return { ok: true, id: data && data.id, jobId: data && data.jobId };
               },
               function () {
                 annotations = [];
@@ -421,7 +421,13 @@
         submit.disabled = true;
         controller.submit().then(function (res) {
           submit.disabled = false;
-          message = res.ok ? 'Thank you! Your feedback was submitted.' : res.error || 'Submission failed.';
+          if (res.ok) {
+            message = res.jobId
+              ? 'Thanks! Your feedback was submitted — a fix pull request is being generated automatically.'
+              : 'Thank you! Your feedback was submitted.';
+          } else {
+            message = res.error || 'Submission failed.';
+          }
           controller.render();
         });
       });
