@@ -8,6 +8,7 @@ let dir: string;
 let fakeScript: string;
 let argsFile: string;
 let cwdFile: string;
+let stdinFile: string;
 
 // A fake `claude` CLI: records argv and cwd, emits stream-json (with a secret to
 // prove redaction), and exits per FAKE_MODE.
@@ -15,6 +16,11 @@ const FAKE = `
 const fs = require('fs');
 fs.writeFileSync(process.env.FAKE_ARGS_FILE, JSON.stringify(process.argv.slice(2)));
 fs.writeFileSync(process.env.FAKE_CWD_FILE, process.cwd());
+let input = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => { input += chunk; });
+process.stdin.on('end', () => {
+  fs.writeFileSync(process.env.FAKE_STDIN_FILE, input);
 const mode = process.env.FAKE_MODE || 'ok';
 if (mode === 'hang') { setInterval(() => {}, 1000); }
 else {
@@ -23,6 +29,7 @@ else {
   process.stdout.write(JSON.stringify({ type: 'result', subtype: mode === 'fail' ? 'error' : 'success' }) + '\\n');
   process.exit(mode === 'fail' ? 1 : 0);
 }
+});
 `;
 
 beforeAll(async () => {
@@ -30,6 +37,7 @@ beforeAll(async () => {
   fakeScript = join(dir, 'fake-claude.js');
   argsFile = join(dir, 'args.json');
   cwdFile = join(dir, 'cwd.txt');
+  stdinFile = join(dir, 'stdin.txt');
   await writeFile(fakeScript, FAKE, 'utf8');
 });
 
@@ -45,12 +53,13 @@ const baseEnv = () => ({
   ...process.env,
   FAKE_ARGS_FILE: argsFile,
   FAKE_CWD_FILE: cwdFile,
+  FAKE_STDIN_FILE: stdinFile,
 });
 
 describe('ClaudeAgent', () => {
   it('invokes claude with the exact argument array and worktree cwd', async () => {
     const res = await agent().run(
-      { prompt: 'FIX THINGS', cwd: dir },
+      { prompt: 'FIX THINGS & echo INJECTION', cwd: dir },
       { env: { ...baseEnv(), FAKE_MODE: 'ok' } },
     );
     expect(res.ok).toBe(true);
@@ -58,7 +67,6 @@ describe('ClaudeAgent', () => {
     const argv = JSON.parse(await readFile(argsFile, 'utf8')) as string[];
     expect(argv).toEqual([
       '-p',
-      'FIX THINGS',
       '--output-format',
       'stream-json',
       '--permission-mode',
@@ -72,6 +80,7 @@ describe('ClaudeAgent', () => {
       'Bash(npm *)',
       'Bash(npx *)',
     ]);
+    expect(await readFile(stdinFile, 'utf8')).toBe('FIX THINGS & echo INJECTION');
 
     const usedCwd = (await readFile(cwdFile, 'utf8')).trim().replace(/\\/g, '/');
     expect(usedCwd).toBe(dir.replace(/\\/g, '/'));
