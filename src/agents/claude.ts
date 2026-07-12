@@ -14,23 +14,35 @@ export interface ClaudeAgentOptions {
    * installed CLI on PATH is used. Tests inject `[node, fakeScript]`.
    */
   command?: string[];
+  /**
+   * Model for the run. Defaults to `sonnet` (fast + strong at code) rather than
+   * the CLI's configured default, which may be a slower model like Opus.
+   */
+  model?: string;
 }
 
 /** Flags for the installed Claude Code CLI, in noninteractive edit mode. */
-function claudeArgs(): string[] {
+function claudeArgs(model: string): string[] {
   return [
     '-p',
     '--output-format',
     'stream-json',
     // The CLI requires --verbose when combining --print with stream-json output.
     '--verbose',
+    // Speed: skip hooks, LSP, plugins and all MCP servers. None are needed for
+    // scoped file edits and they add several seconds of cold start per run.
+    '--bare',
+    '--strict-mcp-config',
+    // Pin a fast, capable model instead of the CLI's (possibly slow) default.
+    '--model',
+    model,
     '--no-session-persistence',
     '--max-turns',
     '30',
     '--permission-mode',
     'acceptEdits',
     // Pinpoint owns all command execution, verification, Git, and GitHub work.
-    // Claude may only inspect and edit files inside the isolated worktree.
+    // Claude may only inspect and edit files inside the review branch.
     '--allowedTools',
     'Read',
     'Glob',
@@ -48,14 +60,16 @@ function claudeArgs(): string[] {
 export class ClaudeAgent implements CodingAgent {
   readonly name = 'claude-code';
   private readonly command: string[];
+  private readonly model: string;
 
   constructor(options: ClaudeAgentOptions = {}) {
     this.command = options.command ?? ['claude'];
+    this.model = options.model ?? 'sonnet';
   }
 
   async run(task: AgentTask, options: AgentRunOptions = {}): Promise<AgentResult> {
     const base = this.command;
-    const args = [...base.slice(1), ...claudeArgs()];
+    const args = [...base.slice(1), ...claudeArgs(this.model)];
 
     const events: AgentEvent[] = [];
     let buffer = '';

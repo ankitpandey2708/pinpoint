@@ -24,9 +24,14 @@ async function main(): Promise<void> {
       try {
         console.log(`\n  Starting public tunnel…`);
         tunnel = await startTunnel(target);
+        // One quick tunnel exposes the whole origin, so both routes are public.
+        const dash = new URL(running.dashboardUrl);
         const publicReview = `${tunnel.url}${local.pathname}`;
+        const publicDashboard = `${tunnel.url}${dash.pathname}${dash.search}`;
         console.log(`  Review link (public):   ${publicReview}`);
-        console.log(`\n  Send the PUBLIC link to your client. The dashboard stays local-only.`);
+        console.log(`  Dashboard (public):     ${publicDashboard}`);
+        console.log(`\n  Send the PUBLIC review link to your client.`);
+        console.log(`  The public dashboard is gated ONLY by its token — keep that link private.`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         const notFound = (err as NodeJS.ErrnoException)?.code === 'ENOENT';
