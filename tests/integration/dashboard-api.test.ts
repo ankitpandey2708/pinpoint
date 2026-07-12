@@ -116,6 +116,20 @@ describe('dashboard read APIs', () => {
     expect((await request(app).get('/api/jobs/job_1')).status).toBe(401);
   });
 
+  it('never reveals the developer token through the root or an unkeyed dashboard URL', async () => {
+    const rootResponse = await request(app).get('/');
+    expect(rootResponse.status).toBe(404);
+    expect(rootResponse.text).not.toContain(DEV_TOKEN);
+
+    const unkeyed = await request(app).get('/dashboard');
+    expect(unkeyed.status).toBe(401);
+    expect(unkeyed.text).not.toContain(DEV_TOKEN);
+
+    const keyed = await request(app).get(`/dashboard?token=${DEV_TOKEN}`);
+    expect(keyed.status).toBe(200);
+    expect(keyed.text).toContain(DEV_TOKEN);
+  });
+
   it('lists projects', async () => {
     const res = await request(app).get('/api/projects').set('x-pinpoint-token', DEV_TOKEN);
     expect(res.status).toBe(200);

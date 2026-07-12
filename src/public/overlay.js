@@ -237,8 +237,60 @@
       '  border-radius:10px; padding:10px; font-weight:700; cursor:pointer; }',
       '.submit:disabled { opacity:.5; cursor:not-allowed; }',
       '.msg { font-size:12px; margin-top:8px; min-height:14px; }',
+      '.hl-layer { position:fixed; inset:0; pointer-events:none; z-index:2147483646; }',
+      '.hl-hover { position:fixed; border:2px solid ' + ACCENT + '; border-radius:4px;',
+      '  background:rgba(109,94,252,.12); pointer-events:none; transition:all 60ms ease-out; display:none; }',
+      '.hl-pin { position:fixed; transform:translate(-50%,-50%); width:22px; height:22px;',
+      '  border-radius:50%; background:' + ACCENT + '; color:#fff; display:flex; align-items:center;',
+      '  justify-content:center; font-size:12px; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,.4);',
+      '  pointer-events:none; }',
     ].join('\n');
     root.appendChild(style);
+
+    // On-page highlight layer: a hover outline over the element under the cursor
+    // and numbered pins over each selected element. Drawn inside the shadow root
+    // (viewport-fixed) so it tracks scroll/resize without leaking page styles.
+    var hlLayer = document.createElement('div');
+    hlLayer.className = 'hl-layer';
+    root.appendChild(hlLayer);
+    var hover = document.createElement('div');
+    hover.className = 'hl-hover';
+    hlLayer.appendChild(hover);
+
+    function elementFor(id) {
+      try {
+        return document.querySelector('[data-pinpoint-id="' + id + '"]');
+      } catch (e) {
+        return null;
+      }
+    }
+    function drawPins() {
+      Array.prototype.slice.call(hlLayer.querySelectorAll('.hl-pin')).forEach(function (p) {
+        p.remove();
+      });
+      controller.annotations().forEach(function (a, i) {
+        var target = elementFor(a.elementId);
+        if (!target) return;
+        var r = target.getBoundingClientRect();
+        var pin = document.createElement('div');
+        pin.className = 'hl-pin';
+        pin.textContent = String(i + 1);
+        pin.style.left = r.left + 'px';
+        pin.style.top = r.top + 'px';
+        hlLayer.appendChild(pin);
+      });
+    }
+    function showHover(el) {
+      var r = el.getBoundingClientRect();
+      hover.style.display = 'block';
+      hover.style.left = r.left + 'px';
+      hover.style.top = r.top + 'px';
+      hover.style.width = r.width + 'px';
+      hover.style.height = r.height + 'px';
+    }
+    function hideHover() {
+      hover.style.display = 'none';
+    }
 
     var panel = document.createElement('div');
     panel.className = 'panel';
@@ -315,6 +367,8 @@
       msg.className = 'msg';
       msg.textContent = message;
       body.appendChild(msg);
+
+      drawPins();
     };
 
     // Silent variants avoid a full re-render (which would blur the field) while typing.
@@ -348,6 +402,40 @@
       },
       true,
     );
+
+    // Hover highlight tracking.
+    document.addEventListener(
+      'mouseover',
+      function (e) {
+        var target = e.target;
+        if (!target || isPinpointUi(target)) return;
+        var el = target.closest ? target.closest('[data-pinpoint-id]') : null;
+        if (el) showHover(el);
+        else hideHover();
+      },
+      true,
+    );
+    document.addEventListener(
+      'mouseout',
+      function (e) {
+        var to = e.relatedTarget;
+        if (!to || !(to.closest && to.closest('[data-pinpoint-id]'))) hideHover();
+      },
+      true,
+    );
+    // Keep pins/hover aligned as the page scrolls or resizes.
+    window.addEventListener(
+      'scroll',
+      function () {
+        hideHover();
+        drawPins();
+      },
+      true,
+    );
+    window.addEventListener('resize', function () {
+      hideHover();
+      drawPins();
+    });
   }
 
   var Pinpoint = {
