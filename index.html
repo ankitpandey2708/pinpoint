@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pin Point — Feedback, pinned right where it happens.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236c5ce7' d='M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z'/%3E%3C/svg%3E">
+<title>Pinpoint — Feedback, pinned right where it happens.</title>
+<meta name="description" content="Clients and freelancers leave comments directly on the live landing page. AI triages by effort; low-effort fixes arrive as a pull request.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23e0412a' d='M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,400;1,9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
 <!-- Vercel Web Analytics -->
 <script>
@@ -17,19 +18,30 @@
 
 <style>
   :root {
-    --accent: #6c5ce7;
-    --accent-2: #8b7cf6;
-    --accent-dark: #5a48d8;
-    --ink: #0f0f17;
-    --ink-soft: #5b5b71;
-    --ink-faint: #90909f;
-    --bg: #ffffff;
-    --bg-soft: #f7f7fc;
-    --border: #e8e8f2;
-    --shadow-sm: 0 1px 2px rgba(15, 15, 23, 0.04);
-    --shadow-md: 0 8px 24px rgba(15, 15, 23, 0.06);
-    --shadow-lg: 0 24px 48px rgba(15, 15, 23, 0.10);
-    --shadow-accent: 0 10px 30px rgba(108, 92, 231, 0.28);
+    --paper:      #f2ede1;
+    --paper-2:    #ebe4d4;
+    --card:       #fbf8f1;
+    --ink:        #1a1712;
+    --ink-soft:   #6d655781;
+    --ink-soft-1: #6d6557;
+    --ink-faint:  #a89d88;
+    --line:       #dcd3c0;
+    --line-soft:  #e4ddcd;
+    --accent:     #e0412a;
+    --accent-deep:#b6301c;
+    --accent-wash:#f7e2db;
+    --olive:      #6f7a3f;
+    --olive-wash: #e8ebd6;
+    --ochre:      #b07d18;
+    --ochre-wash: #f4e8cf;
+
+    --serif: "Fraunces", Georgia, "Times New Roman", serif;
+    --sans:  "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono:  "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+    --shadow-paper: 8px 14px 40px rgba(26, 23, 18, 0.16), 0 2px 6px rgba(26, 23, 18, 0.08);
+    --shadow-note:  0 6px 20px rgba(26, 23, 18, 0.13);
+    --shadow-btn:   0 6px 18px rgba(224, 65, 42, 0.32);
   }
 
   * { box-sizing: border-box; }
@@ -38,523 +50,568 @@
 
   body {
     margin: 0;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--sans);
     color: var(--ink);
-    background: var(--bg);
-    line-height: 1.5;
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(rgba(160, 148, 122, 0.28) 1px, transparent 1.4px);
+    background-size: 26px 26px;
+    background-position: -13px -13px;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
 
-  .wrap {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 0 24px;
+  /* Grain overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
   }
 
-  /* ---------- Nav ---------- */
+  ::selection { background: var(--accent); color: #fff; }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 28px; }
+
+  a { color: inherit; }
+
+  /* ─────────── Nav ─────────── */
   .nav-outer {
     position: sticky;
     top: 0;
-    z-index: 50;
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border);
+    z-index: 60;
+    background: rgba(242, 237, 225, 0.82);
+    backdrop-filter: blur(8px) saturate(1.2);
+    -webkit-backdrop-filter: blur(8px) saturate(1.2);
+    border-bottom: 1px solid var(--line);
   }
 
   nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 0;
+    padding: 16px 0;
+    gap: 20px;
   }
 
   .logo {
     display: flex;
     align-items: center;
-    gap: 9px;
-    font-weight: 800;
-    font-size: 18px;
-    letter-spacing: -0.01em;
+    gap: 10px;
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 21px;
+    letter-spacing: -0.02em;
   }
 
   .logo-mark {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    display: flex;
+    width: 22px;
+    height: 22px;
+    display: block;
+    filter: drop-shadow(0 2px 4px rgba(224, 65, 42, 0.35));
+  }
+  .logo-mark path { fill: var(--accent); }
+
+  .nav-right { display: flex; align-items: center; gap: 22px; }
+
+  .nav-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .btn {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-accent);
-  }
-
-  .logo-mark svg { width: 14px; height: 14px; }
-
-  .nav-cta {
-    background: var(--ink);
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
+    gap: 9px;
+    font-family: var(--sans);
+    font-weight: 700;
     text-decoration: none;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.18s cubic-bezier(.2,.8,.3,1), box-shadow 0.18s ease, background 0.18s ease;
   }
 
-  .nav-cta:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+  .btn-ink {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 18px;
+    border-radius: 7px;
+    font-size: 14px;
+  }
+  .btn-ink:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(26,23,18,0.22); }
+
+  .btn-accent {
+    background: var(--accent);
+    color: #fff;
+    padding: 16px 30px;
+    border-radius: 8px;
+    font-size: 15.5px;
+    letter-spacing: 0.005em;
+    box-shadow: var(--shadow-btn);
+  }
+  .btn-accent:hover {
+    transform: translateY(-2px);
+    background: var(--accent-deep);
+    box-shadow: 0 12px 28px rgba(224, 65, 42, 0.4);
+  }
+  .btn-accent .pin-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.28);
   }
 
-  /* ---------- Hero ---------- */
-  header.hero {
+  /* ─────────── Hero ─────────── */
+  .hero {
     position: relative;
-    padding: 96px 0 80px;
-    text-align: center;
-    overflow: hidden;
+    padding: 52px 0 88px;
   }
 
-  .hero-glow {
-    position: absolute;
-    top: -180px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 900px;
-    height: 500px;
-    background: radial-gradient(ellipse at center, rgba(108, 92, 231, 0.18), rgba(108, 92, 231, 0) 70%);
-    pointer-events: none;
-    z-index: 0;
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.06fr;
+    gap: 56px;
+    align-items: center;
   }
-
-  .hero-inner { position: relative; z-index: 1; }
 
   .eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent-dark);
-    background: #f1effc;
-    border: 1px solid #e2ddfb;
-    padding: 6px 14px 6px 10px;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    border: 1px solid var(--accent);
+    background: var(--accent-wash);
+    padding: 6px 13px;
     border-radius: 999px;
-    margin-bottom: 28px;
-    letter-spacing: 0.01em;
+    margin-bottom: 30px;
   }
-
-  .eyebrow .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+  .eyebrow .blink {
+    width: 7px; height: 7px; border-radius: 50%;
     background: var(--accent);
+    animation: blink 1.8s ease-in-out infinite;
   }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 
   h1 {
-    font-size: 58px;
-    font-weight: 800;
-    line-height: 1.08;
+    font-family: var(--serif);
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-size: clamp(46px, 6.4vw, 84px);
+    line-height: 0.96;
+    letter-spacing: -0.025em;
     margin: 0 0 22px;
-    letter-spacing: -0.03em;
   }
-
-  h1 .accent {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  h1 .em {
+    font-style: italic;
+    font-weight: 600;
+    color: var(--accent);
+    position: relative;
+  }
+  /* hand-drawn underline on the accent phrase */
+  h1 .em::after {
+    content: "";
+    position: absolute;
+    left: -2px; right: -2px; bottom: 0.02em;
+    height: 0.5em;
+    background: var(--accent);
+    opacity: 0.14;
+    border-radius: 3px;
+    transform: rotate(-0.6deg);
+    z-index: -1;
   }
 
   .subhead {
     font-size: 19px;
-    color: var(--ink-soft);
-    max-width: 560px;
-    margin: 0 auto 40px;
+    color: var(--ink-soft-1);
+    max-width: 460px;
+    margin: 0 0 30px;
   }
 
-  .waitlist-form {
-    display: flex;
-    justify-content: center;
-  }
-
-  .waitlist-btn {
-    display: inline-block;
-    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-    color: #fff;
-    border: none;
-    padding: 15px 32px;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    white-space: nowrap;
-    text-decoration: none;
-    box-shadow: var(--shadow-accent);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .waitlist-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 14px 34px rgba(108, 92, 231, 0.36);
-  }
+  .cta-row { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
 
   .form-note {
-    font-size: 13px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
     color: var(--ink-faint);
-    margin-top: 14px;
+    max-width: 220px;
+    line-height: 1.5;
   }
 
-  /* ---------- Hero visual: stylized pinned comment mockup ---------- */
-  .hero-visual {
-    margin: 64px auto 0;
-    max-width: 700px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 0;
+  /* ── The marked-up proof ── */
+  .proof-stage {
     position: relative;
-    box-shadow: var(--shadow-lg);
-    text-align: left;
+    perspective: 1600px;
+  }
+
+  .proof {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow-paper);
+    transform: rotate(-1.3deg);
     overflow: visible;
   }
 
-  .browser-bar {
+  .proof-bar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
+    gap: 7px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line-soft);
   }
-
-  .browser-bar span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--border);
+  .proof-bar i {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--line); display: block;
   }
-
-  .browser-bar .url {
-    margin-left: 10px;
-    font-size: 12px;
+  .proof-bar i:first-child { background: #d98a7e; }
+  .proof-url {
+    margin-left: 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
     color: var(--ink-faint);
-    background: var(--bg-soft);
+    background: var(--paper);
     padding: 4px 12px;
     border-radius: 6px;
+    flex: 1;
   }
-
-  .mock-body { padding: 28px 26px 32px; }
-
-  .fake-block {
-    background: var(--bg-soft);
-    border-radius: 8px;
-    height: 14px;
-    margin-bottom: 10px;
-  }
-  .fake-block.w40 { width: 40%; height: 20px; margin-bottom: 20px; }
-  .fake-block.w90 { width: 90%; }
-  .fake-block.w60 { width: 60%; }
-  .fake-block.tall {
-    height: 70px;
-    margin-top: 18px;
-    margin-bottom: 18px;
-    background: linear-gradient(135deg, #f1effc, var(--bg-soft));
-  }
-
-  .pin {
-    position: absolute;
-    width: 32px;
-    height: 32px;
-    border-radius: 50% 50% 50% 0;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    transform: rotate(-45deg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 18px rgba(108, 92, 231, 0.4);
-  }
-
-  .pin::after {
-    content: "";
-    width: 11px;
-    height: 11px;
-    background: #fff;
-    border-radius: 50%;
-    transform: rotate(45deg);
-  }
-
-  .pin.pin1 { top: 78px; right: 72px; }
-  .pin.pin2 { bottom: 56px; left: 92px; }
-
-  .callout {
-    position: absolute;
-    background: var(--ink);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 9px 13px;
-    border-radius: 9px;
-    max-width: 190px;
-    box-shadow: var(--shadow-md);
-  }
-
-  .callout.c1 { top: 74px; right: 108px; }
-  .callout.c2 { bottom: 52px; left: 128px; }
-
-  /* ---------- Sections ---------- */
-  section { padding: 100px 0; }
-
-  section.soft { background: var(--bg-soft); }
-
-  .section-head {
-    text-align: center;
-    max-width: 620px;
-    margin: 0 auto 60px;
-  }
-
-  .section-eyebrow {
-    display: block;
-    font-size: 13px;
+  .proof-live {
+    font-family: var(--mono);
+    font-size: 10px;
     font-weight: 700;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 12px;
+    letter-spacing: 0.14em;
+    color: var(--olive);
+    border: 1px solid var(--olive);
+    padding: 2px 7px;
+    border-radius: 5px;
   }
 
+  .proof-page { padding: 30px 28px 40px; position: relative; }
+
+  .sk { background: var(--paper-2); border-radius: 5px; }
+  .sk.title { height: 26px; width: 62%; margin-bottom: 16px; background: var(--ink); opacity: 0.82; }
+  .sk.line  { height: 11px; margin-bottom: 11px; }
+  .sk.w95 { width: 95%; } .sk.w80 { width: 80%; } .sk.w60 { width: 60%; }
+  .sk.hero-img {
+    height: 92px; margin: 22px 0;
+    background: repeating-linear-gradient(-45deg, var(--paper-2) 0 12px, var(--line-soft) 12px 24px);
+    border-radius: 8px;
+  }
+  .sk.btn-block {
+    height: 34px; width: 132px; margin-top: 20px;
+    background: var(--ink); opacity: 0.28; border-radius: 7px;
+  }
+
+  /* annotation markers */
+  .marker {
+    position: absolute;
+    width: 30px; height: 30px;
+    border-radius: 50% 50% 50% 2px;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transform: rotate(-45deg);
+    box-shadow: 0 6px 14px rgba(224, 65, 42, 0.45);
+    z-index: 4;
+  }
+  .marker span { transform: rotate(45deg); }
+  .marker.m1 { top: 46px; left: 40%; }
+  .marker.m2 { bottom: 44px; left: 132px; }
+
+  /* floating comment notes */
+  .note {
+    position: absolute;
+    width: 196px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 13px;
+    box-shadow: var(--shadow-note);
+    z-index: 6;
+  }
+  .note-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 7px;
+  }
+  .ava {
+    width: 21px; height: 21px; border-radius: 50%;
+    background: var(--ink); color: var(--paper);
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .note-meta {
+    font-family: var(--mono);
+    font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .note p { margin: 0; font-size: 13px; color: var(--ink); line-height: 1.4; }
+  .note .chip {
+    display: inline-block; margin-top: 9px;
+    font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .chip.low  { color: var(--olive); background: var(--olive-wash); }
+  .chip.high { color: var(--accent-deep); background: var(--accent-wash); }
+
+  .note.n1 { top: -22px; right: -30px; }
+  .note.n2 { bottom: 6px; left: -46px; }
+
+  /* dashed leader lines */
+  .leader {
+    position: absolute;
+    border-top: 1.5px dashed var(--accent);
+    opacity: 0.55;
+    z-index: 3;
+    transform-origin: left center;
+  }
+  .leader.l1 { top: 40px; left: calc(40% + 18px); width: 120px; transform: rotate(-16deg); }
+  .leader.l2 { bottom: 52px; left: 78px; width: 62px; transform: rotate(20deg); }
+
+  /* ─────────── Sections ─────────── */
+  section { padding: 104px 0; position: relative; }
+  section + section { border-top: 1px solid var(--line); }
+  .section.tint { background: var(--paper-2); }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: inline-block;
+    margin-bottom: 16px;
+  }
+  .kicker .sec { color: var(--ink-faint); }
+
+  .section-head { max-width: 640px; margin-bottom: 60px; }
+  .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
   .section-head h2 {
-    font-size: 36px;
-    font-weight: 800;
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: clamp(30px, 3.6vw, 45px);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
     margin: 0 0 14px;
+  }
+  .section-head p {
+    font-size: 17.5px;
+    color: var(--ink-soft-1);
+    margin: 0;
+  }
+
+  /* Problem — editorial numbered rows */
+  .problem-list { display: grid; gap: 0; }
+  .problem-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 30px;
+    padding: 30px 0;
+    border-top: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .problem-row:last-child { border-bottom: 1px solid var(--line); }
+  .problem-row .num {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 56px;
+    line-height: 0.8;
+    color: transparent;
+    -webkit-text-stroke: 1.4px var(--accent);
     letter-spacing: -0.02em;
   }
-
-  .section-head p {
-    font-size: 17px;
-    color: var(--ink-soft);
-    margin: 0;
+  .problem-row .body h3 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 23px;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
   }
+  .problem-row .body p { margin: 0; color: var(--ink-soft-1); font-size: 16px; max-width: 620px; }
+  .problem-row:hover .num { color: var(--accent); -webkit-text-stroke: 0; transition: color .2s ease; }
 
-  .problem-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 22px;
-  }
-
-  .problem-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 30px 26px;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-
-  .problem-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .problem-card .icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    background: #f1effc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    margin-bottom: 18px;
-  }
-
-  .problem-card h3 {
-    font-size: 17px;
-    font-weight: 700;
-    margin: 0 0 8px;
-  }
-
-  .problem-card p {
-    font-size: 14.5px;
-    color: var(--ink-soft);
-    margin: 0;
-  }
-
+  /* How it works — process */
   .steps {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-
-  .step {
-    position: relative;
-    padding: 30px 26px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-
-  .step:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .step-num {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #fff;
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 20px;
-    box-shadow: var(--shadow-accent);
-  }
-
-  .step h3 {
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0 0 8px;
-  }
-
-  .step p {
-    font-size: 14.5px;
-    color: var(--ink-soft);
-    margin: 0;
-  }
-
-  .step .tag {
-    display: inline-block;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 999px;
-    margin: 12px 6px 0 0;
-  }
-
-  .tag.low { background: #e6f7ed; color: #1a9c5b; }
-  .tag.mid { background: #fff4e0; color: #b8790a; }
-  .tag.high { background: #fdeaea; color: #c53030; }
-
-  .audiences {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
     gap: 24px;
-  }
-
-  .audience-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 40px 36px;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-
-  .audience-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .audience-card h3 {
-    font-size: 21px;
-    font-weight: 700;
-    margin: 0 0 6px;
-    letter-spacing: -0.01em;
-  }
-
-  .audience-card .kicker {
-    display: inline-block;
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--accent-dark);
-    background: #f1effc;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 5px 11px;
-    border-radius: 999px;
-    margin-bottom: 14px;
-  }
-
-  .audience-card ul {
-    margin: 20px 0 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .audience-card li {
-    font-size: 14.5px;
-    color: var(--ink-soft);
-    padding-left: 24px;
     position: relative;
-    margin-bottom: 12px;
   }
-
-  .audience-card li::before {
-    content: "✓";
-    position: absolute;
-    left: 0;
-    top: 0;
+  .step {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px 26px 30px;
+    position: relative;
+    transition: transform 0.2s cubic-bezier(.2,.8,.3,1), box-shadow 0.2s ease;
+  }
+  .step:hover { transform: translateY(-4px); box-shadow: var(--shadow-note); }
+  .step-num {
+    font-family: var(--mono);
+    font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
     color: var(--accent);
-    font-weight: 800;
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
   }
+  .step-num::before {
+    content: ""; width: 26px; height: 1px; background: var(--accent);
+  }
+  .step h3 {
+    font-family: var(--serif);
+    font-weight: 600; font-size: 21px; margin: 0 0 8px; letter-spacing: -0.01em;
+  }
+  .step p { margin: 0; color: var(--ink-soft-1); font-size: 15px; }
+  .step .tags { margin-top: 16px; display: flex; gap: 7px; flex-wrap: wrap; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 5px;
+  }
+  .tag.low  { color: var(--olive); background: var(--olive-wash); border: 1px solid #cdd4ad; }
+  .tag.mid  { color: var(--ochre); background: var(--ochre-wash); border: 1px solid #e6d3a6; }
+  .tag.high { color: var(--accent-deep); background: var(--accent-wash); border: 1px solid #eec3ba; }
 
-  /* ---------- Footer CTA ---------- */
-  footer.cta {
+  /* Audiences */
+  .audiences { display: grid; grid-template-columns: repeat(2, 1fr); gap: 26px; }
+  .aud {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 40px 38px;
     position: relative;
-    text-align: center;
-    padding: 110px 0 96px;
     overflow: hidden;
   }
-
-  footer.cta .cta-glow {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 800px;
-    height: 400px;
-    background: radial-gradient(ellipse at center, rgba(108, 92, 231, 0.14), rgba(108, 92, 231, 0) 70%);
-    pointer-events: none;
+  .aud::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: var(--accent);
+  }
+  .aud .ak {
+    font-family: var(--mono);
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent-deep);
+    display: block; margin-bottom: 14px;
+  }
+  .aud h3 {
+    font-family: var(--serif);
+    font-weight: 600; font-size: 26px; letter-spacing: -0.01em; margin: 0 0 4px;
+  }
+  .aud ul { list-style: none; margin: 24px 0 0; padding: 0; }
+  .aud li {
+    font-size: 15.5px; color: var(--ink-soft-1);
+    padding: 12px 0 12px 30px;
+    border-top: 1px dashed var(--line);
+    position: relative;
+  }
+  .aud li:first-child { border-top: none; }
+  .aud li::before {
+    content: "✓";
+    position: absolute; left: 0; top: 12px;
+    color: var(--accent); font-weight: 700;
+    font-family: var(--sans);
   }
 
-  footer.cta .wrap { position: relative; z-index: 1; }
+  /* Footer CTA */
+  footer.cta {
+    text-align: center;
+    padding: 118px 0 40px;
+    position: relative;
+  }
+  .cta-pin {
+    width: 46px; height: 46px; margin: 0 auto 26px;
+    display: block;
+    animation: hover-pin 3.5s ease-in-out infinite;
+    filter: drop-shadow(0 10px 16px rgba(224, 65, 42, 0.35));
+  }
+  .cta-pin path { fill: var(--accent); }
+  @keyframes hover-pin { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-9px) } }
 
   footer.cta h2 {
-    font-size: 34px;
-    font-weight: 800;
-    margin: 0 0 14px;
-    letter-spacing: -0.02em;
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: clamp(32px, 4.2vw, 52px);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 0 0 16px;
   }
+  footer.cta p { color: var(--ink-soft-1); font-size: 18px; margin: 0 0 38px; }
 
-  footer.cta p {
-    color: var(--ink-soft);
-    font-size: 16px;
-    margin: 0 0 36px;
-  }
-
-  .foot-note {
-    margin-top: 72px;
-    padding-top: 28px;
-    border-top: 1px solid var(--border);
-    font-size: 13px;
+  .colophon {
+    margin-top: 90px;
+    padding-top: 26px;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 11.5px; letter-spacing: 0.06em;
     color: var(--ink-faint);
-    text-align: center;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .colophon .dotmark {
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .colophon .dotmark::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
   }
 
-  @media (max-width: 760px) {
-    h1 { font-size: 38px; }
-    .problem-grid, .steps, .audiences { grid-template-columns: 1fr; }
-    .pin, .callout { display: none; }
-    section { padding: 72px 0; }
+  /* ─────────── Load-in animation ─────────── */
+  .reveal { opacity: 0; transform: translateY(18px); animation: reveal 0.85s cubic-bezier(.2,.75,.3,1) forwards; }
+  @keyframes reveal { to { opacity: 1; transform: none; } }
+
+  .drop { opacity: 0; animation: drop 0.6s cubic-bezier(.3,1.4,.5,1) forwards; }
+  @keyframes drop {
+    0% { opacity: 0; transform: rotate(-45deg) translateY(-16px) scale(0.6); }
+    100% { opacity: 1; transform: rotate(-45deg) translateY(0) scale(1); }
+  }
+  .proof.reveal { transform: translateY(18px) rotate(-1.3deg); }
+  .proof.reveal { animation-name: reveal-proof; }
+  @keyframes reveal-proof {
+    from { opacity: 0; transform: translateY(24px) rotate(-3deg); }
+    to   { opacity: 1; transform: translateY(0) rotate(-1.3deg); }
+  }
+
+  .d1{animation-delay:.05s}.d2{animation-delay:.18s}.d3{animation-delay:.31s}
+  .d4{animation-delay:.46s}.d5{animation-delay:.72s}.d6{animation-delay:.9s}
+  .d7{animation-delay:1.05s}.d8{animation-delay:1.18s}
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .drop, .proof.reveal { animation: none; opacity: 1; transform: none; }
+    .proof.reveal { transform: rotate(-1.3deg); }
+    .drop { transform: rotate(-45deg); }
+    .eyebrow .blink, .cta-pin { animation: none; }
+  }
+
+  /* ─────────── Responsive ─────────── */
+  @media (max-width: 940px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 72px; }
+    .subhead { max-width: 560px; }
+    .proof { transform: rotate(-1deg); max-width: 520px; margin: 0 auto; }
+  }
+  @media (max-width: 720px) {
+    section { padding: 76px 0; }
+    .hero { padding: 56px 0 72px; }
+    .steps, .audiences { grid-template-columns: 1fr; }
+    .problem-row { grid-template-columns: 62px 1fr; gap: 18px; }
+    .problem-row .num { font-size: 40px; }
+    .note, .leader, .marker { display: none; }
+    .nav-meta { display: none; }
+    .colophon { justify-content: center; text-align: center; }
   }
 </style>
 </head>
@@ -564,98 +621,138 @@
   <div class="wrap">
     <nav>
       <div class="logo">
-        <span class="logo-mark">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z" fill="white"/>
-          </svg>
-        </span>
-        Pin Point
+        <svg class="logo-mark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+        </svg>
+        Pinpoint
       </div>
-      <a class="nav-cta" href="#waitlist">Join waitlist</a>
+      <div class="nav-right">
+        <span class="nav-meta">Early access · 2026</span>
+      </div>
     </nav>
   </div>
 </div>
 
 <header class="hero">
-  <div class="hero-glow" aria-hidden="true"></div>
-  <div class="wrap hero-inner">
-    <span class="eyebrow"><span class="dot"></span>Now in early access</span>
-    <h1>Feedback, pinned<br>right <span class="accent">where it happens.</span></h1>
-    <p class="subhead">Clients and freelancers leave comments directly on the live landing page — no more screenshots, no more guessing what "that" means.</p>
-
-    <div class="waitlist-form" id="waitlist">
-      <a class="waitlist-btn" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="hero">Join the waitlist</a>
-    </div>
-    <p class="form-note">Takes 10 seconds — just your name and email. No spam.</p>
-
-    <div class="hero-visual" aria-hidden="true">
-      <div class="browser-bar">
-        <span></span><span></span><span></span>
-        <span class="url">yourlandingpage.com</span>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow reveal d1"><span class="blink"></span>Now in early access</span>
+        <h1 class="reveal d2">Feedback, pinned <span class="em">right where it&nbsp;happens.</span></h1>
+        <p class="subhead reveal d3">Clients and freelancers leave comments directly on the live landing page — no more screenshots, no more guessing what <em>“that”</em> means.</p>
+        <div class="cta-row reveal d4" id="waitlist">
+          <a class="btn btn-accent" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="hero">
+            <span class="pin-dot"></span>Join the waitlist
+          </a>
+          <p class="form-note">Takes 10 seconds — just your name and email. No spam.</p>
+        </div>
       </div>
-      <div class="mock-body">
-        <div class="fake-block w40"></div>
-        <div class="fake-block w90"></div>
-        <div class="fake-block w60"></div>
-        <div class="fake-block tall"></div>
-        <div class="fake-block w90"></div>
+
+      <div class="proof-stage" aria-hidden="true">
+        <div class="proof reveal d4">
+          <div class="proof-bar">
+            <i></i><i></i><i></i>
+            <span class="proof-url">yourlandingpage.com</span>
+            <span class="proof-live">● LIVE</span>
+          </div>
+          <div class="proof-page">
+            <div class="sk title"></div>
+            <div class="sk line w95"></div>
+            <div class="sk line w80"></div>
+            <div class="sk hero-img"></div>
+            <div class="sk line w95"></div>
+            <div class="sk line w60"></div>
+            <div class="sk btn-block"></div>
+
+            <span class="leader l1 reveal d6"></span>
+            <span class="leader l2 reveal d7"></span>
+
+            <div class="marker m1 drop d5"><span>01</span></div>
+            <div class="marker m2 drop d6"><span>02</span></div>
+
+            <div class="note n1 reveal d7">
+              <div class="note-head">
+                <span class="ava">MK</span>
+                <span class="note-meta">Client · 2m ago</span>
+              </div>
+              <p>Move this heading up — it’s below the fold.</p>
+              <span class="chip low">Low effort</span>
+            </div>
+
+            <div class="note n2 reveal d8">
+              <div class="note-head">
+                <span class="ava">JD</span>
+                <span class="note-meta">Client · 5m ago</span>
+              </div>
+              <p>Button copy is unclear here.</p>
+              <span class="chip high">Needs review</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="pin pin1"></div>
-      <div class="callout c1">Move this heading up</div>
-      <div class="pin pin2"></div>
-      <div class="callout c2">Button text unclear</div>
+
     </div>
   </div>
 </header>
 
-<section class="soft">
+<section class="section tint">
   <div class="wrap">
     <div class="section-head">
-      <span class="section-eyebrow">The problem</span>
-      <h2>Feedback shouldn't live somewhere else</h2>
-      <p>Today it's a screenshot in Slack, a vague email, or a comment buried in a doc — disconnected from the page it's actually about.</p>
+      <span class="kicker"><span class="sec">§ 01</span> · The problem</span>
+      <h2>Feedback shouldn’t live somewhere else</h2>
+      <p>Today it’s a screenshot in Slack, a vague email, or a comment buried in a doc — disconnected from the page it’s actually about.</p>
     </div>
-    <div class="problem-grid">
-      <div class="problem-card">
-        <div class="icon">💬</div>
-        <h3>Scattered feedback</h3>
-        <p>By the time a freelancer reads it, they're guessing what "that" refers to.</p>
+    <div class="problem-list">
+      <div class="problem-row">
+        <div class="num">01</div>
+        <div class="body">
+          <h3>Scattered feedback</h3>
+          <p>By the time a freelancer reads it, they’re guessing what “that” refers to.</p>
+        </div>
       </div>
-      <div class="problem-card">
-        <div class="icon">🔁</div>
-        <h3>Slow back-and-forth</h3>
-        <p>Ambiguous notes mean another round of "wait, which section did you mean?"</p>
+      <div class="problem-row">
+        <div class="num">02</div>
+        <div class="body">
+          <h3>Slow back-and-forth</h3>
+          <p>Ambiguous notes mean another round of “wait, which section did you mean?”</p>
+        </div>
       </div>
-      <div class="problem-card">
-        <div class="icon">⏱️</div>
-        <h3>Small fixes, big context-switch</h3>
-        <p>Even clear feedback still costs a full context-switch to turn into an actual change.</p>
+      <div class="problem-row">
+        <div class="num">03</div>
+        <div class="body">
+          <h3>Small fixes, big context-switch</h3>
+          <p>Even clear feedback still costs a full context-switch to turn into an actual change.</p>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<section>
+<section class="section">
   <div class="wrap">
-    <div class="section-head">
-      <span class="section-eyebrow">How it works</span>
+    <div class="section-head center">
+      <span class="kicker"><span class="sec">§ 02</span> · How it works</span>
       <h2>From comment to fix, automatically</h2>
-      <p>Three steps from "here's what's wrong" to a fix ready for review.</p>
+      <p>Three steps from “here’s what’s wrong” to a fix ready for review.</p>
     </div>
     <div class="steps">
       <div class="step">
-        <div class="step-num">1</div>
+        <div class="step-num">Step 01</div>
         <h3>Pin it</h3>
         <p>Click directly on the live page and leave a comment right where it applies.</p>
       </div>
       <div class="step">
-        <div class="step-num">2</div>
+        <div class="step-num">Step 02</div>
         <h3>AI sorts it</h3>
         <p>Every comment is triaged automatically by effort.</p>
-        <span class="tag low">low</span><span class="tag mid">mid</span><span class="tag high">high</span>
+        <div class="tags">
+          <span class="tag low">Low</span>
+          <span class="tag mid">Mid</span>
+          <span class="tag high">High</span>
+        </div>
       </div>
       <div class="step">
-        <div class="step-num">3</div>
+        <div class="step-num">Step 03</div>
         <h3>Low-effort → PR</h3>
         <p>An agent drafts the fix as a pull request. A human always reviews before it merges.</p>
       </div>
@@ -663,25 +760,25 @@
   </div>
 </section>
 
-<section class="soft">
+<section class="section tint">
   <div class="wrap">
-    <div class="section-head">
-      <span class="section-eyebrow">Built for both sides</span>
+    <div class="section-head center">
+      <span class="kicker"><span class="sec">§ 03</span> · Built for both sides</span>
       <h2>One shared workspace</h2>
       <p>Not a tool that favors the client or the freelancer — everyone works from the same page, literally.</p>
     </div>
     <div class="audiences">
-      <div class="audience-card">
-        <span class="kicker">For clients &amp; teams</span>
+      <div class="aud">
+        <span class="ak">For clients &amp; teams</span>
         <h3>Say it once, where it belongs</h3>
         <ul>
           <li>Leave feedback in plain language, right on the page</li>
           <li>No new tool to learn, no ticket format to follow</li>
-          <li>See exactly what's been actioned and what's pending</li>
+          <li>See exactly what’s been actioned and what’s pending</li>
         </ul>
       </div>
-      <div class="audience-card">
-        <span class="kicker">For freelancers</span>
+      <div class="aud">
+        <span class="ak">For freelancers</span>
         <h3>Spend time on what needs judgment</h3>
         <ul>
           <li>Every comment is unambiguous and located exactly where it applies</li>
@@ -694,19 +791,26 @@
 </section>
 
 <footer class="cta">
-  <div class="cta-glow" aria-hidden="true"></div>
   <div class="wrap">
-    <h2>Be first to try Pin Point</h2>
-    <p>We're opening early access soon. Join the waitlist to get in early.</p>
-    <div class="waitlist-form">
-      <a class="waitlist-btn" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="footer">Join the waitlist</a>
+    <svg class="cta-pin" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+    </svg>
+    <h2>Be first to try Pinpoint</h2>
+    <p>We’re opening early access soon. Join the waitlist to get in early.</p>
+    <div class="cta-row" style="justify-content:center;">
+      <a class="btn btn-accent" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="footer">
+        <span class="pin-dot"></span>Join the waitlist
+      </a>
     </div>
-    <div class="foot-note">Pin Point &middot; feedback, pinned right where it happens.</div>
+    <div class="colophon">
+      <span class="dotmark">Pinpoint</span>
+      <span>Feedback, pinned right where it happens.</span>
+    </div>
   </div>
 </footer>
 
 <script>
-  document.querySelectorAll('.waitlist-btn').forEach(function (btn) {
+  document.querySelectorAll('.btn-accent').forEach(function (btn) {
     btn.addEventListener('click', function () {
       window.va('event', { name: 'waitlist_signup_click', method: 'google_form', label: btn.dataset.gaLabel });
     });
