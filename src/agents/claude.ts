@@ -22,6 +22,8 @@ function claudeArgs(): string[] {
     '-p',
     '--output-format',
     'stream-json',
+    // The CLI requires --verbose when combining --print with stream-json output.
+    '--verbose',
     '--no-session-persistence',
     '--max-turns',
     '30',

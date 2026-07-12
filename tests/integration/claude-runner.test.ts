@@ -69,6 +69,7 @@ describe('ClaudeAgent', () => {
       '-p',
       '--output-format',
       'stream-json',
+      '--verbose',
       '--no-session-persistence',
       '--max-turns',
       '30',
