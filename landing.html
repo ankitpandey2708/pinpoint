@@ -182,54 +182,29 @@
   .waitlist-form {
     display: flex;
     justify-content: center;
-    gap: 10px;
-    max-width: 460px;
-    margin: 0 auto;
-    flex-wrap: wrap;
   }
 
-  .waitlist-form input[type="email"] {
-    flex: 1;
-    min-width: 240px;
-    padding: 14px 18px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    font-size: 15px;
-    font-family: inherit;
-    outline: none;
-    background: #fff;
-    box-shadow: var(--shadow-sm);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .waitlist-form input[type="email"]:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.12);
-  }
-
-  .waitlist-form button {
+  .waitlist-btn {
+    display: inline-block;
     background: linear-gradient(135deg, var(--accent), var(--accent-dark));
     color: #fff;
     border: none;
-    padding: 14px 24px;
+    padding: 15px 32px;
     border-radius: 10px;
     font-size: 15px;
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
     white-space: nowrap;
+    text-decoration: none;
     box-shadow: var(--shadow-accent);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .waitlist-form button:hover {
+  .waitlist-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 14px 34px rgba(108, 92, 231, 0.36);
   }
-
-  .waitlist-form button:disabled { cursor: default; opacity: 0.85; transform: none; }
-
-  .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 
   .form-note {
     font-size: 13px;
@@ -611,13 +586,10 @@
     <h1>Feedback, pinned<br>right <span class="accent">where it happens.</span></h1>
     <p class="subhead">Clients and freelancers leave comments directly on the live landing page — no more screenshots, no more guessing what "that" means.</p>
 
-    <form class="waitlist-form" id="waitlist" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="company">
-      <input type="hidden" name="form-name" value="waitlist">
-      <input type="text" name="company" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <input type="email" name="email" placeholder="you@company.com" required aria-label="Email address">
-      <button type="submit">Join the waitlist</button>
-    </form>
-    <p class="form-note">No spam. We'll email you when early access opens.</p>
+    <div class="waitlist-form" id="waitlist">
+      <a class="waitlist-btn" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="hero">Join the waitlist</a>
+    </div>
+    <p class="form-note">Takes 10 seconds — just your name and email. No spam.</p>
 
     <div class="hero-visual" aria-hidden="true">
       <div class="browser-bar">
@@ -729,53 +701,19 @@
   <div class="wrap">
     <h2>Be first to try Pin Point</h2>
     <p>We're opening early access soon. Join the waitlist to get in early.</p>
-    <form class="waitlist-form" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="company">
-      <input type="hidden" name="form-name" value="waitlist">
-      <input type="text" name="company" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <input type="email" name="email" placeholder="you@company.com" required aria-label="Email address">
-      <button type="submit">Join the waitlist</button>
-    </form>
+    <div class="waitlist-form">
+      <a class="waitlist-btn" href="https://forms.gle/16qfPSFgSKEcv51z6" target="_blank" rel="noopener" data-ga-label="footer">Join the waitlist</a>
+    </div>
     <div class="foot-note">Pin Point &middot; feedback, pinned right where it happens.</div>
   </div>
 </footer>
 
 <script>
-  function encodeForm(data) {
-    return Object.keys(data)
-      .map(function (key) { return encodeURIComponent(key) + '=' + encodeURIComponent(data[key]); })
-      .join('&');
-  }
-
-  document.querySelectorAll('.waitlist-form').forEach(function (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var btn = form.querySelector('button');
-      var original = btn.textContent;
-      var formData = new FormData(form);
-      var payload = {};
-      formData.forEach(function (value, key) { payload[key] = value; });
-
-      fetch('/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: encodeForm(payload)
-      })
-        .then(function () {
-          if (typeof gtag === 'function') {
-            gtag('event', 'waitlist_signup', { method: 'landing_page_form' });
-          }
-          btn.textContent = "You're on the list!";
-          btn.disabled = true;
-          form.reset();
-          setTimeout(function () {
-            btn.textContent = original;
-            btn.disabled = false;
-          }, 3000);
-        })
-        .catch(function () {
-          btn.textContent = 'Something went wrong — try again';
-          setTimeout(function () { btn.textContent = original; }, 3000);
-        });
+  document.querySelectorAll('.waitlist-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (typeof gtag === 'function') {
+        gtag('event', 'waitlist_signup_click', { method: 'google_form', label: btn.dataset.gaLabel });
+      }
     });
   });
 </script>
