@@ -233,18 +233,19 @@ export class Orchestrator {
   }
 
   private async runPipeline(jobId: string, review: SubmittedReview, project: Project): Promise<void> {
-    // 1. Create the generated branch directly in the repository (no worktree),
-    //    remembering the developer's current branch so we can restore it after.
+    // 1. Create the generated branch directly in the repository (no worktree).
     await this.setStatus(jobId, 'preparing');
     const branch = this.deps.repo.generateBranchName(review.id);
-    const originalBranch = await this.deps.repo.currentBranch(project.repoPath);
-    await this.deps.repo.createReviewBranch(project.repoPath, branch, review.baseCommit);
-    await this.deps.repositories.jobs.update(jobId, {
-      branch,
-      updatedAt: new Date().toISOString(),
-    });
 
+    // Everything after the branch may be created runs inside the try so the
+    // finally always returns the checkout to the base branch — even if branch
+    // creation or the immediately-following persistence fails.
     try {
+      await this.deps.repo.createReviewBranch(project.repoPath, branch, review.baseCommit);
+      await this.deps.repositories.jobs.update(jobId, {
+        branch,
+        updatedAt: new Date().toISOString(),
+      });
       // Establish a clean, reproducible baseline before the agent edits anything.
       // Pre-existing failures must not be blamed on client feedback.
       const repositoryInfo = infoForProject(project, project.repoPath, review.baseCommit);
