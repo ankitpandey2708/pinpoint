@@ -3,14 +3,13 @@ import { join } from 'node:path';
 import { entityId } from '../lib/ids';
 import { buildAgentPrompt } from '../agents/prompt';
 import {
-  createWorktree,
+  generateBranchName,
+  currentBranch,
+  createReviewBranch,
   changedFiles,
   commitAll,
-  removeWorktree,
-  generateBranchName,
-  type CreateWorktreeInput,
-  type Worktree,
-} from '../git/worktree';
+  restoreBranch,
+} from '../git/repo';
 import { verifyRepository, type VerifyOptions } from '../git/verify';
 import { assertSafeChangedFiles } from '../git/change-policy';
 import { createDraftPullRequest, type DraftPrInput } from '../github/client';
