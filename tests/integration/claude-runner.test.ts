@@ -69,6 +69,9 @@ describe('ClaudeAgent', () => {
       '-p',
       '--output-format',
       'stream-json',
+      '--no-session-persistence',
+      '--max-turns',
+      '30',
       '--permission-mode',
       'acceptEdits',
       '--allowedTools',
@@ -77,8 +80,8 @@ describe('ClaudeAgent', () => {
       'Grep',
       'Edit',
       'Write',
-      'Bash(npm *)',
-      'Bash(npx *)',
+      'Bash(npm test*)',
+      'Bash(npm run *)',
     ]);
     expect(await readFile(stdinFile, 'utf8')).toBe('FIX THINGS & echo INJECTION');
 

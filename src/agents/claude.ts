@@ -17,25 +17,27 @@ export interface ClaudeAgentOptions {
 }
 
 /** Flags for the installed Claude Code CLI, in noninteractive edit mode. */
-function claudeArgs(prompt: string): string[] {
+function claudeArgs(): string[] {
   return [
     '-p',
-    prompt,
     '--output-format',
     'stream-json',
+    '--no-session-persistence',
+    '--max-turns',
+    '30',
     '--permission-mode',
     'acceptEdits',
     // Git history/network tools are intentionally excluded: Pinpoint owns
     // commit, push, and PR creation. The agent may read, search, edit, and run
-    // npm/npx only.
+    // declared npm checks only.
     '--allowedTools',
     'Read',
     'Glob',
     'Grep',
     'Edit',
     'Write',
-    'Bash(npm *)',
-    'Bash(npx *)',
+    'Bash(npm test*)',
+    'Bash(npm run *)',
   ];
 }
 
@@ -54,7 +56,7 @@ export class ClaudeAgent implements CodingAgent {
 
   async run(task: AgentTask, options: AgentRunOptions = {}): Promise<AgentResult> {
     const base = this.command;
-    const args = [...base.slice(1), ...claudeArgs(task.prompt)];
+    const args = [...base.slice(1), ...claudeArgs()];
 
     const events: AgentEvent[] = [];
     let buffer = '';
@@ -81,6 +83,7 @@ export class ClaudeAgent implements CodingAgent {
       env: options.env,
       timeoutMs: options.timeoutMs,
       signal: options.signal,
+      input: task.prompt,
       onStdout: (chunk) => {
         // chunk is already secret-redacted by runProcess.
         buffer += chunk;
