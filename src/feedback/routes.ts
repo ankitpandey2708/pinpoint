@@ -55,7 +55,7 @@ function extractClientAnnotation(raw: unknown): ClientAnnotation | undefined {
     selector: str(r.selector, 1024),
     tag: str(r.tag, 64),
     classes: Array.isArray(r.classes)
-      ? r.classes.filter((c): c is string => typeof c === 'string').slice(0, 50)
+      ? r.classes.filter((c): c is string => typeof c === 'string').slice(0, 50).map((c) => c.slice(0, 64))
       : [],
     visibleText: str(r.visibleText, MAX_TEXT),
     nearbyText: str(r.nearbyText, MAX_TEXT),

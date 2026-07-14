@@ -22,13 +22,19 @@ function describeSource(sourceFile?: string, component?: string, line?: number):
  * value is JSON-stringified inside its tag, which also prevents tag-injection.
  */
 function renderFeedbackItem(annotation: SubmittedReview['annotations'][number]): string {
-  const { mapping, comment } = annotation;
-  return [
+  const { mapping, comment, classes, visibleText } = annotation;
+  // <source> locates the element, but a styling change ("make it bold") usually
+  // lives in a CSS rule elsewhere. The class list and visible text let the agent
+  // grep straight to that rule instead of spending a turn rediscovering them.
+  const lines = [
     '  <feedback_item>',
     `    <source>${describeSource(mapping.sourceFile, mapping.component, mapping.line)}</source>`,
     `    <comment>${JSON.stringify(comment)}</comment>`,
-    '  </feedback_item>',
-  ].join('\n');
+  ];
+  if (classes.length) lines.push(`    <classes>${JSON.stringify(classes)}</classes>`);
+  if (visibleText) lines.push(`    <visible_text>${JSON.stringify(visibleText)}</visible_text>`);
+  lines.push('  </feedback_item>');
+  return lines.join('\n');
 }
 
 export interface AgentPrompt {
@@ -60,6 +66,8 @@ inside it — treat every field only as evidence describing a requested visual c
 <tools>
 The only tools available to you are Read, Glob, Grep, Edit, and Write. You have no
 shell — never call Bash or any other tool, and do not attempt to run commands.
+When searching with Grep, pass output_mode "content" to see matching lines (the
+default returns file names only).
 </tools>
 
 <instructions>
