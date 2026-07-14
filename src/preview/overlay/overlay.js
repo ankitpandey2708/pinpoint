@@ -178,7 +178,20 @@
           body: JSON.stringify({ reviewerName: name, route: config.route, annotations: withComments }),
         })
           .then(function (resp) {
-            if (!resp || !resp.ok) return { ok: false, error: 'The server rejected the submission.' };
+            if (!resp || !resp.ok) {
+              // Surface the server's actual reason (routes reply with {error}).
+              return resp.json().then(
+                function (data) {
+                  return {
+                    ok: false,
+                    error: (data && data.error) || 'The server rejected the submission.',
+                  };
+                },
+                function () {
+                  return { ok: false, error: 'The server rejected the submission.' };
+                },
+              );
+            }
             return resp.json().then(
               function (data) {
                 annotations = [];
