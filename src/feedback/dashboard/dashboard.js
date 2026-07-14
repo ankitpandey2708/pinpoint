@@ -90,6 +90,7 @@
     emptyEl.hidden = reviews.length > 0;
     reviews.forEach(function (r) {
       var card = el('li', 'review-card');
+      card.setAttribute('data-id', r.id);
       if (r.id === selectedId) card.classList.add('active');
       card.title = new Date(r.createdAt).toLocaleString();
 
@@ -307,6 +308,8 @@
       Array.prototype.forEach.call(listEl.children, function (c) {
         c.classList.remove('active');
       });
+      var picked = listEl.querySelector('[data-id="' + id + '"]');
+      if (picked) picked.classList.add('active');
     }
     getJSON(API + '/reviews/' + encodeURIComponent(id)).then(function (data) {
       renderDetail(data);
