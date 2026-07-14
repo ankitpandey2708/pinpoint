@@ -1,0 +1,348 @@
+:root {
+  --bg: #0e0d17;
+  --panel: #14121f;
+  --panel-2: #1b1930;
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #f5f4ff;
+  --muted: rgba(245, 244, 255, 0.62);
+  --accent: #6d5efc;
+  --accent-2: #8b7dff;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --bad: #ff8a8a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 14px;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(109, 94, 252, 0.7);
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+  gap: 20px;
+  padding: 20px 24px;
+  align-items: start;
+}
+
+.col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.review-card:hover {
+  border-color: rgba(109, 94, 252, 0.5);
+}
+
+.review-card.active {
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+
+.review-card .who {
+  font-weight: 700;
+}
+
+.review-card .meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge.direct {
+  background: rgba(74, 222, 128, 0.16);
+  color: var(--ok);
+}
+.badge.approximate {
+  background: rgba(251, 191, 36, 0.16);
+  color: var(--warn);
+}
+.badge.unresolved {
+  background: rgba(255, 138, 138, 0.16);
+  color: var(--bad);
+}
+
+.status {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+.status.pr-opened {
+  background: rgba(74, 222, 128, 0.16);
+  color: var(--ok);
+}
+.status.failed {
+  background: rgba(255, 138, 138, 0.16);
+  color: var(--bad);
+}
+.status.running-agent,
+.status.verifying,
+.status.pushing,
+.status.preparing,
+.status.queued {
+  background: rgba(109, 94, 252, 0.18);
+  color: var(--accent-2);
+}
+
+.detail {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  background: var(--panel);
+  min-height: 200px;
+}
+
+.detail h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.detail .repo {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.annotation {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: var(--panel-2);
+}
+
+.annotation .head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pin {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tagchip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.comment {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+button.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.ghost {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.job-panel {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.job-panel h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.checks {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.checks li {
+  padding: 3px 0;
+  color: var(--muted);
+}
+.checks li.ok::before {
+  content: '✓ ';
+  color: var(--ok);
+}
+.checks li.bad::before {
+  content: '✕ ';
+  color: var(--bad);
+}
+.checks li.skip::before {
+  content: '– ';
+}
+
+.pr-link {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.fail-reason {
+  color: var(--bad);
+  margin-top: 8px;
+}
+
+.log {
+  margin-top: 10px;
+  max-height: 240px;
+  overflow: auto;
+  background: #08070f;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+}
+
+.files {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+.files li {
+  padding: 2px 0;
+}
+.files li::before {
+  content: '± ';
+  color: var(--accent-2);
+}
