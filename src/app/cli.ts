@@ -71,6 +71,16 @@ function displayHost(host: string): string {
 }
 
 /**
+ * Compare two repository roots for identity. Both come from the same
+ * git-toplevel normalization (absolute, forward slashes), so a plain compare
+ * suffices — except on Windows, where the filesystem is case-insensitive and a
+ * differently-cased path argument still denotes the same repo.
+ */
+function samePath(a: string, b: string): boolean {
+  return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
+/**
  * Compose a full review session: inspect the repository, record a project,
  * create an instrumented preview, wire the orchestrator, and start the server.
  * All external effects go through `services` so the flow is unit-testable.
@@ -109,8 +119,12 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
 
   const repositories = await createRepositories(services.dataDir);
 
-  const project: Project = {
-    id: entityId('proj'),
+  // A project's identity is the repository it points at (`repoPath`, the
+  // canonical git root). Re-running against the same working copy is the SAME
+  // project, so we reuse the existing record's stable `id`/`createdAt` and only
+  // refresh the mutable snapshot below. Minting a fresh id every run is what
+  // accumulated one duplicate record per launch.
+  const snapshot = {
     name: info.root.split(/[\\/]/).filter(Boolean).at(-1) ?? 'project',
     repoPath: info.root,
     githubRepo: info.githubRepo,
@@ -120,9 +134,19 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
     htmlEntry: info.htmlEntry,
     commands: info.commands,
     port,
-    createdAt: new Date().toISOString(),
   };
-  await repositories.projects.insert(project);
+
+  const existing = (await repositories.projects.list()).find((p) =>
+    samePath(p.repoPath, info.root),
+  );
+
+  const project: Project = existing
+    ? await repositories.projects.update(existing.id, snapshot)
+    : await repositories.projects.insert({
+        id: entityId('proj'),
+        ...snapshot,
+        createdAt: new Date().toISOString(),
+      });
 
   const workspace = await services.createWorkspace(project, { workRoot: services.workRoot });
   lap('workspace');

@@ -159,13 +159,19 @@ export function killProcessTree(pid: number | undefined, child?: ChildProcess): 
   });
 }
 
+interface ProcInfo {
+  pid: number;
+  ppid: number;
+  command: string;
+}
+
 /**
- * Snapshot running processes as `{ pid, command }` (full command line), so a
- * process can be found by a path in its command line. Best-effort and
- * cross-platform; returns `[]` if enumeration fails. `-ww` keeps `ps` from
- * truncating the command line (deep workspace paths would otherwise be cut off).
+ * Snapshot running processes as `{ pid, ppid, command }` (full command line), so
+ * a process can be found by a path in its command line and its ancestry walked.
+ * Best-effort and cross-platform; returns `[]` if enumeration fails. `-ww` keeps
+ * `ps` from truncating the command line (deep workspace paths would be cut off).
  */
-async function listProcesses(): Promise<Array<{ pid: number; command: string }>> {
+async function listProcesses(): Promise<ProcInfo[]> {
   try {
     if (process.platform === 'win32') {
       const res = await runProcess(
@@ -173,30 +179,26 @@ async function listProcesses(): Promise<Array<{ pid: number; command: string }>>
         [
           '-NoProfile',
           '-Command',
-          'Get-CimInstance Win32_Process | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress',
+          'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress',
         ],
         { maxOutputBytes: 64 * 1024 * 1024 },
       );
       const parsed = JSON.parse(res.stdout || '[]') as unknown;
       const arr = Array.isArray(parsed) ? parsed : [parsed];
       return arr
-        .filter((p): p is { ProcessId: number; CommandLine: string } =>
+        .filter((p): p is { ProcessId: number; ParentProcessId: number; CommandLine: string } =>
           Boolean(p && (p as { CommandLine?: unknown }).CommandLine),
         )
-        .map((p) => ({ pid: Number(p.ProcessId), command: String(p.CommandLine) }));
+        .map((p) => ({ pid: Number(p.ProcessId), ppid: Number(p.ParentProcessId), command: String(p.CommandLine) }));
     }
-    const res = await runProcess('ps', ['-A', '-ww', '-o', 'pid=,args='], {
+    const res = await runProcess('ps', ['-A', '-ww', '-o', 'pid=,ppid=,args='], {
       maxOutputBytes: 64 * 1024 * 1024,
     });
     return res.stdout
       .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const sp = line.indexOf(' ');
-        return { pid: Number(line.slice(0, sp)), command: line.slice(sp + 1) };
-      })
-      .filter((p) => Number.isFinite(p.pid));
+      .map((line) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), command: m[3] }));
   } catch {
     return [];
   }
@@ -208,7 +210,18 @@ async function listProcesses(): Promise<Array<{ pid: number; command: string }>>
  * never targets the current process. Returns how many were killed.
  */
 export async function killProcessesMatching(match: (command: string) => boolean): Promise<number> {
-  const victims = (await listProcesses()).filter((p) => p.pid && p.pid !== process.pid && match(p.command));
+  const procs = await listProcesses();
+  // Never kill ourselves or an ancestor: tree-killing an ancestor would
+  // terminate this very process mid-run (e.g. the `tsx`/npm wrapper that
+  // launched us, whose command line can itself match the predicate).
+  const byPid = new Map(procs.map((p) => [p.pid, p]));
+  const skip = new Set<number>([process.pid]);
+  let cur = byPid.get(process.pid)?.ppid;
+  while (cur && byPid.has(cur) && !skip.has(cur)) {
+    skip.add(cur);
+    cur = byPid.get(cur)?.ppid;
+  }
+  const victims = procs.filter((p) => p.pid && !skip.has(p.pid) && match(p.command));
   await Promise.all(victims.map((v) => killProcessTree(v.pid)));
   return victims.length;
 }

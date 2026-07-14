@@ -19,10 +19,14 @@ const STORAGE_PREFIX = 'pinpoint:draft:';
  * and a mid-saturation warm coral holds contrast against both far better than
  * lime or the old purple. Panel chrome lives in CSS vars; the on-page markers
  * (rendered into the host document, not the shadow root) reuse these literals.
+ * `coral()` is the single source of the signal RGB — every alpha variant, in
+ * both the injected keyframes and the inline marker styles, comes through it.
  */
+const coral = (a) => 'rgba(255,90,60,' + a + ')';
 const SIGNAL = '#ff5a3c';
-const SIGNAL_SOFT = 'rgba(255,90,60,0.18)';
-const SIGNAL_LINE = 'rgba(255,90,60,0.55)';
+const SIGNAL_SOFT = coral(0.18);
+const SIGNAL_LINE = coral(0.55);
+const ON_SIGNAL = '#1a0d09'; // near-black text sitting on the coral signal
 
 function isPinpointUi(el) {
   let node = el;
@@ -98,7 +102,7 @@ function buildController(config) {
 
   const controller = {
     draftKey: draftKey,
-    render: function () { },
+    render: function () {},
     elementFor: elementFor,
     // Resolve + record a selection. Async because source resolution is async.
     select: function (el) {
@@ -219,40 +223,52 @@ function buildController(config) {
   return controller;
 }
 
-/* ---- Icon set (inline SVG strings, stroke = currentColor) ------------------ */
+/* ---- Icon set --------------------------------------------------------------
+ * Inline SVG strings, stroke = currentColor so they inherit their host's color.
+ * `svg()` owns the shared <svg> boilerplate; icons only supply size, weight, and
+ * inner geometry. The crosshair geometry is shared between two sizes.
+ */
+function svg(size, sw, inner, round) {
+  return (
+    '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size + '" fill="none" ' +
+    'stroke="currentColor" stroke-width="' + sw + '" stroke-linecap="round"' +
+    (round ? ' stroke-linejoin="round"' : '') + '>' + inner + '</svg>'
+  );
+}
+const CROSSHAIR =
+  '<circle cx="12" cy="12" r="7"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>' +
+  '<circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/>';
 const ICON = {
-  crosshair:
-    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="7"/>' +
-    '<path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>' +
-    '<circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>',
-  crosshairLg:
-    '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.3" stroke-linecap="round"><circle cx="12" cy="12" r="7"/>' +
-    '<path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/>' +
-    '<circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>',
-  minimize:
-    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.7" stroke-linecap="round"><path d="M6 12h12"/></svg>',
-  trash:
-    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+  crosshair: svg(16, 1.6, CROSSHAIR),
+  crosshairLg: svg(34, 1.3, CROSSHAIR),
+  minimize: svg(16, 1.7, '<path d="M6 12h12"/>'),
+  trash: svg(
+    15,
+    1.5,
     '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 .8 12a1 1 0 0 0 1 .95h6.4a1 1 0 0 0 1-.95L18 7"/>' +
-    '<path d="M10 11v5M14 11v5"/></svg>',
-  send:
-    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
-    '<path d="M4.5 12h12.5M11.5 6.5 18 12l-6.5 5.5"/></svg>',
-  cursor:
-    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
-    '<path d="M5 3.5 12 20l2.2-6.3L20.5 11z"/></svg>',
-  target:
-    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/>' +
-    '<path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/>' +
-    '<circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>',
+      '<path d="M10 11v5M14 11v5"/>',
+    true,
+  ),
+  send: svg(15, 1.7, '<path d="M4.5 12h12.5M11.5 6.5 18 12l-6.5 5.5"/>', true),
+  cursor: svg(13, 1.7, '<path d="M5 3.5 12 20l2.2-6.3L20.5 11z"/>', true),
+  target: svg(
+    13,
+    1.6,
+    '<circle cx="12" cy="12" r="6.5"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/>' +
+      '<circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
+  ),
 };
+
+/* All on-page markers (frame, hover box, region boxes, pins) share the same
+ * envelope: the `pinpoint-marker` class (for cleanup + click ignore), the
+ * `data-pinpoint-ui` flag, and inline positioning styles. */
+function makeMarker(tag, cls, css) {
+  const el = document.createElement(tag);
+  el.className = cls ? 'pinpoint-marker ' + cls : 'pinpoint-marker';
+  el.setAttribute('data-pinpoint-ui', '1');
+  el.style.cssText = css;
+  return el;
+}
 
 /* Marker styles live in the HOST document (markers are rendered into <body>, not
  * the shadow root). We inject them once with a stable id, using !important on the
@@ -271,11 +287,11 @@ function injectMarkerStyles() {
     '.pinpoint-pin{animation:pinpoint-pop .28s cubic-bezier(.2,.9,.3,1.4) both;}',
     '.pinpoint-pin.is-active{animation:pinpoint-pin-pulse 1.6s ease-out infinite;}',
     '@keyframes pinpoint-pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}',
-    '@keyframes pinpoint-focus-glow{0%,100%{box-shadow:0 0 0 1px ' + SIGNAL_LINE + ',0 0 20px rgba(255,90,60,.22)}',
-    '  50%{box-shadow:0 0 0 1px rgba(255,90,60,.85),0 0 28px rgba(255,90,60,.4)}}',
-    '@keyframes pinpoint-pin-pulse{0%{box-shadow:0 0 0 0 rgba(255,90,60,.55),0 5px 16px rgba(0,0,0,.45)}',
-    '  70%{box-shadow:0 0 0 10px rgba(255,90,60,0),0 5px 16px rgba(0,0,0,.45)}',
-    '  100%{box-shadow:0 0 0 0 rgba(255,90,60,0),0 5px 16px rgba(0,0,0,.45)}}',
+    '@keyframes pinpoint-focus-glow{0%,100%{box-shadow:0 0 0 1px ' + SIGNAL_LINE + ',0 0 20px ' + coral(0.22) + '}',
+    '  50%{box-shadow:0 0 0 1px ' + coral(0.85) + ',0 0 28px ' + coral(0.4) + '}}',
+    '@keyframes pinpoint-pin-pulse{0%{box-shadow:0 0 0 0 ' + coral(0.55) + ',0 5px 16px rgba(0,0,0,.45)}',
+    '  70%{box-shadow:0 0 0 10px ' + coral(0) + ',0 5px 16px rgba(0,0,0,.45)}',
+    '  100%{box-shadow:0 0 0 0 ' + coral(0) + ',0 5px 16px rgba(0,0,0,.45)}}',
     // Comment mode: force a crosshair everywhere so it is obvious a click annotates
     // rather than triggering the app. Pinpoint UI (pins/panel) keeps its own cursor.
     'html.pinpoint-commenting, html.pinpoint-commenting *{cursor:crosshair!important;}',
@@ -306,6 +322,7 @@ function mountUI(controller, config) {
       --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
       --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
       --bg: rgba(18,19,24,0.82);
+      --glass: blur(26px) saturate(160%);
       --border: rgba(255,255,255,0.10);
       --border-2: rgba(255,255,255,0.16);
       --surface: rgba(255,255,255,0.035);
@@ -316,6 +333,10 @@ function mountUI(controller, config) {
       --signal: ${SIGNAL};
       --signal-hi: #ff7d63;
       --signal-soft: rgba(255,90,60,0.14);
+      --signal-line: ${SIGNAL_LINE};
+      --signal-border: rgba(255,90,60,0.30);
+      --on-signal: ${ON_SIGNAL};
+      --field-bg: rgba(0,0,0,0.28);
       --ok: #57d59b;
     }
     * { box-sizing: border-box; }
@@ -325,8 +346,8 @@ function mountUI(controller, config) {
       display: flex; flex-direction: column;
       font-family: var(--font-mono); color: var(--text);
       background: var(--bg);
-      -webkit-backdrop-filter: blur(26px) saturate(160%);
-      backdrop-filter: blur(26px) saturate(160%);
+      -webkit-backdrop-filter: var(--glass);
+      backdrop-filter: var(--glass);
       border: 1px solid var(--border);
       border-radius: 18px;
       box-shadow: 0 28px 70px -18px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.06);
@@ -356,12 +377,18 @@ function mountUI(controller, config) {
     .word { font-size: 13px; font-weight: 600; letter-spacing: .22em; }
     .sub { font-size: 8.5px; letter-spacing: .3em; color: var(--faint); text-transform: uppercase; }
     .hd-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    .count {
-      font-size: 11px; font-weight: 600; color: var(--signal);
-      min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
-      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-      background: var(--signal-soft); border: 1px solid rgba(255,90,60,.3);
+
+    /* Coral count pills, shared between the header and the collapsed FAB. */
+    .count, .fab-count {
+      color: var(--signal); background: var(--signal-soft);
+      border: 1px solid var(--signal-border); border-radius: 999px;
     }
+    .count {
+      font-size: 11px; font-weight: 600; min-width: 22px; height: 22px; padding: 0 7px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .fab-count { font-size: 10.5px; padding: 1px 7px; letter-spacing: 0; }
+
     .icon-btn {
       display: inline-flex; align-items: center; justify-content: center;
       width: 26px; height: 26px; padding: 0; border-radius: 8px;
@@ -372,7 +399,7 @@ function mountUI(controller, config) {
 
     /* ---- Mode toggle ---------------------------------------------------- */
     .modebar { flex: 0 0 auto; padding: 12px 14px 0; }
-    .seg { display: flex; gap: 3px; padding: 3px; border-radius: 11px; background: rgba(0,0,0,.3); border: 1px solid var(--border); }
+    .seg { display: flex; gap: 3px; padding: 3px; border-radius: 11px; background: var(--field-bg); border: 1px solid var(--border); }
     .seg button {
       flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       padding: 7px 6px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .08em;
@@ -380,7 +407,7 @@ function mountUI(controller, config) {
       transition: color .14s ease, background .14s ease, box-shadow .14s ease;
     }
     .seg button:hover { color: var(--text); }
-    .seg button.on { color: #1a0d09; background: linear-gradient(180deg, var(--signal-hi), var(--signal)); box-shadow: 0 3px 10px -2px rgba(255,90,60,.5); }
+    .seg button.on { box-shadow: 0 3px 10px -2px rgba(255,90,60,.5); }
     .seg button svg { flex: 0 0 auto; }
 
     /* ---- Scroll region -------------------------------------------------- */
@@ -416,13 +443,13 @@ function mountUI(controller, config) {
     .item:nth-child(4) { animation-delay: .09s; }
     .item:nth-child(5) { animation-delay: .12s; }
     .item:hover { border-color: var(--border-2); background: var(--surface-hi); }
-    .item.active { border-color: rgba(255,90,60,.55); box-shadow: 0 0 0 1px rgba(255,90,60,.35), 0 8px 22px -10px rgba(255,90,60,.5); }
+    .item.active { border-color: var(--signal-line); box-shadow: 0 0 0 1px rgba(255,90,60,.35), 0 8px 22px -10px rgba(255,90,60,.5); }
 
     .item-hd { display: flex; align-items: center; gap: 8px; }
     .pin {
       flex: 0 0 auto; width: 22px; height: 22px; border-radius: 7px;
       display: inline-flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 600; color: #1a0d09;
+      font-size: 11px; font-weight: 600; color: var(--on-signal);
       background: var(--signal); box-shadow: 0 2px 8px rgba(255,90,60,.4);
     }
     .tag {
@@ -439,36 +466,35 @@ function mountUI(controller, config) {
       cursor: pointer; opacity: 0; transition: all .14s ease;
     }
     .item:hover .del, .item.active .del { opacity: 1; }
-    .del:hover { color: var(--signal-hi); background: var(--signal-soft); border-color: rgba(255,90,60,.3); }
+    .del:hover { color: var(--signal-hi); background: var(--signal-soft); border-color: var(--signal-border); }
 
-    textarea {
-      width: 100%; margin-top: 9px; padding: 9px 10px; resize: vertical; min-height: 52px;
-      font-family: var(--font-sans); font-size: 12.5px; line-height: 1.5; color: var(--text);
-      background: rgba(0,0,0,.28); border: 1px solid var(--border); border-radius: 9px;
-      outline: none; transition: border-color .14s ease, box-shadow .14s ease;
+    /* ---- Fields: comment textarea + name input share one base ----------- */
+    textarea, .name {
+      width: 100%; color: var(--text); background: var(--field-bg);
+      border: 1px solid var(--border); border-radius: 9px; outline: none;
+      transition: border-color .14s ease, box-shadow .14s ease;
     }
-    textarea::placeholder { color: var(--faint); }
-    textarea:focus { border-color: rgba(255,90,60,.55); box-shadow: 0 0 0 3px var(--signal-soft); }
+    textarea::placeholder, .name::placeholder { color: var(--faint); }
+    textarea:focus, .name:focus { border-color: var(--signal-line); box-shadow: 0 0 0 3px var(--signal-soft); }
+    textarea {
+      margin-top: 9px; padding: 9px 10px; resize: vertical; min-height: 52px;
+      font-family: var(--font-sans); font-size: 12.5px; line-height: 1.5;
+    }
+    .name { padding: 8px 10px; font-family: var(--font-mono); font-size: 12px; }
 
     /* ---- Footer --------------------------------------------------------- */
     .ft { flex: 0 0 auto; padding: 12px 14px 14px; border-top: 1px solid var(--border); background: linear-gradient(0deg, rgba(255,255,255,.03), transparent); }
     .field { margin-bottom: 10px; }
     .field label { display: block; font-size: 8.5px; letter-spacing: .26em; text-transform: uppercase; color: var(--faint); margin: 0 0 6px 2px; }
-    .name {
-      width: 100%; padding: 8px 10px; font-family: var(--font-mono); font-size: 12px; color: var(--text);
-      background: rgba(0,0,0,.28); border: 1px solid var(--border); border-radius: 9px; outline: none;
-      transition: border-color .14s ease, box-shadow .14s ease;
-    }
-    .name::placeholder { color: var(--faint); }
-    .name:focus { border-color: rgba(255,90,60,.55); box-shadow: 0 0 0 3px var(--signal-soft); }
 
     .submit {
       width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
       padding: 11px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: .06em;
-      color: #1a0d09; background: linear-gradient(180deg, var(--signal-hi), var(--signal));
       border: 0; border-radius: 11px; cursor: pointer;
       box-shadow: 0 8px 22px -8px rgba(255,90,60,.65); transition: transform .12s ease, box-shadow .16s ease, filter .16s ease;
     }
+    /* Solid coral treatment, shared by the primary button and the active toggle. */
+    .submit, .seg button.on { color: var(--on-signal); background: linear-gradient(180deg, var(--signal-hi), var(--signal)); }
     .submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 26px -8px rgba(255,90,60,.75); filter: brightness(1.05); }
     .submit:active:not(:disabled) { transform: translateY(0); }
     .submit:disabled { opacity: .55; cursor: progress; }
@@ -476,24 +502,20 @@ function mountUI(controller, config) {
     .msg { font-family: var(--font-sans); font-size: 11.5px; line-height: 1.45; margin-top: 10px; padding: 0; min-height: 0; }
     .msg.on { padding: 9px 11px; border-radius: 9px; }
     .msg.ok  { color: var(--ok); background: rgba(87,213,155,.1); border: 1px solid rgba(87,213,155,.28); }
-    .msg.err { color: var(--signal-hi); background: var(--signal-soft); border: 1px solid rgba(255,90,60,.3); }
+    .msg.err { color: var(--signal-hi); background: var(--signal-soft); border: 1px solid var(--signal-border); }
 
     /* ---- Collapsed pill ------------------------------------------------- */
     .fab {
       position: fixed; top: 18px; right: 18px; z-index: 2147483647;
       display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px 9px 11px;
       font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: .16em; color: var(--text);
-      background: var(--bg); -webkit-backdrop-filter: blur(26px) saturate(160%); backdrop-filter: blur(26px) saturate(160%);
+      background: var(--bg); -webkit-backdrop-filter: var(--glass); backdrop-filter: var(--glass);
       border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
       box-shadow: 0 16px 40px -12px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06);
       animation: panel-in .34s cubic-bezier(.16,1,.3,1) both; transition: transform .14s ease, border-color .14s ease;
     }
     .fab:hover { transform: translateY(-1px); border-color: var(--border-2); }
     .fab .cross { color: var(--signal); }
-    .fab-count {
-      font-size: 10.5px; color: var(--signal); background: var(--signal-soft);
-      border: 1px solid rgba(255,90,60,.3); border-radius: 999px; padding: 1px 7px; letter-spacing: 0;
-    }
 
     @media (max-width: 420px) {
       .panel { left: 12px; right: 12px; top: 12px; width: auto; }
@@ -517,12 +539,12 @@ function mountUI(controller, config) {
 
   // A coral frame around the viewport, shown only while commenting, so the whole
   // page visibly signals "clicks land as feedback right now".
-  const frameEl = document.createElement('div');
-  frameEl.className = 'pinpoint-marker';
-  frameEl.setAttribute('data-pinpoint-ui', '1');
-  frameEl.style.cssText =
+  const frameEl = makeMarker(
+    'div',
+    null,
     'position:fixed;inset:0;display:none;pointer-events:none;z-index:2147483643;border-radius:2px;' +
-    'box-shadow:inset 0 0 0 2px ' + SIGNAL_LINE + ',inset 0 0 60px rgba(255,90,60,.14);';
+      'box-shadow:inset 0 0 0 2px ' + SIGNAL_LINE + ',inset 0 0 60px ' + coral(0.14) + ';',
+  );
   document.body.appendChild(frameEl);
 
   // Effective commenting state: intent AND panel expanded. A collapsed pill must
@@ -538,20 +560,27 @@ function mountUI(controller, config) {
     if (!on) hideFocus();
   }
 
-  function placeBox(node, rect) {
+  function setPos(node, rect) {
     node.style.left = Math.round(rect.left + window.scrollX) + 'px';
     node.style.top = Math.round(rect.top + window.scrollY) + 'px';
+  }
+  function placeBox(node, rect) {
+    setPos(node, rect);
     node.style.width = Math.max(Math.round(rect.width), 8) + 'px';
     node.style.height = Math.max(Math.round(rect.height), 16) + 'px';
   }
+  function addMarker(el) {
+    document.body.appendChild(el);
+    markers.push(el);
+  }
 
-  const focusBox = document.createElement('div');
-  focusBox.className = 'pinpoint-marker pinpoint-focus';
-  focusBox.setAttribute('data-pinpoint-ui', '1');
-  focusBox.style.cssText =
+  const focusBox = makeMarker(
+    'div',
+    'pinpoint-focus',
     'position:absolute;display:none;pointer-events:none;box-sizing:border-box;' +
-    'border:1.5px solid ' + SIGNAL + ';background:' + SIGNAL_SOFT + ';z-index:2147483644;' +
-    'transition:left .08s ease-out,top .08s ease-out,width .08s ease-out,height .08s ease-out;';
+      'border:1.5px solid ' + SIGNAL + ';background:' + SIGNAL_SOFT + ';z-index:2147483644;' +
+      'transition:left .08s ease-out,top .08s ease-out,width .08s ease-out,height .08s ease-out;',
+  );
   document.body.appendChild(focusBox);
 
   function showFocus(el) {
@@ -594,39 +623,36 @@ function mountUI(controller, config) {
       const rect = target.getBoundingClientRect();
       const isActive = a.id === activeId;
 
-      const region = document.createElement('div');
-      region.className = 'pinpoint-marker pinpoint-region';
-      region.setAttribute('data-pinpoint-ui', '1');
-      region.style.cssText =
+      const region = makeMarker(
+        'div',
+        'pinpoint-region',
         'position:absolute;pointer-events:none;box-sizing:border-box;z-index:2147483645;' +
-        'border:1.5px ' + (isActive ? 'solid' : 'dashed') + ' ' + SIGNAL_LINE + ';' +
-        'background:' + (isActive ? SIGNAL_SOFT : 'rgba(255,90,60,0.08)') + ';';
+          'border:1.5px ' + (isActive ? 'solid' : 'dashed') + ' ' + SIGNAL_LINE + ';' +
+          'background:' + (isActive ? SIGNAL_SOFT : coral(0.08)) + ';',
+      );
       placeBox(region, rect);
-      document.body.appendChild(region);
-      markers.push(region);
+      addMarker(region);
 
-      const pin = document.createElement('button');
+      const pin = makeMarker(
+        'button',
+        'pinpoint-pin' + (isActive ? ' is-active' : ''),
+        'position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;padding:0;' +
+          'border-radius:8px 8px 8px 2px;background:' + SIGNAL + ';color:' + ON_SIGNAL + ';' +
+          'border:2px solid rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;' +
+          'font:600 11px ui-monospace,"SF Mono",Menlo,monospace;box-shadow:0 5px 16px rgba(0,0,0,.45);' +
+          'cursor:pointer;z-index:2147483646;',
+      );
       pin.type = 'button';
-      pin.className = 'pinpoint-marker pinpoint-pin' + (isActive ? ' is-active' : '');
-      pin.setAttribute('data-pinpoint-ui', '1');
       pin.setAttribute('aria-label', 'Comment ' + (i + 1));
       pin.textContent = String(i + 1);
-      pin.style.cssText =
-        'position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;padding:0;' +
-        'border-radius:8px 8px 8px 2px;background:' + SIGNAL + ';color:#1a0d09;' +
-        'border:2px solid rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;' +
-        'font:600 11px ui-monospace,"SF Mono",Menlo,monospace;box-shadow:0 5px 16px rgba(0,0,0,.45);' +
-        'cursor:pointer;z-index:2147483646;';
-      pin.style.left = Math.round(rect.left + window.scrollX) + 'px';
-      pin.style.top = Math.round(rect.top + window.scrollY) + 'px';
+      setPos(pin, rect);
       pin.addEventListener('click', function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
         collapsed = false;
         focusComment(a.id);
       });
-      document.body.appendChild(pin);
-      markers.push(pin);
+      addMarker(pin);
     });
   }
 
@@ -705,9 +731,9 @@ function mountUI(controller, config) {
         '<div class="empty-mark">' + ICON.crosshairLg + '</div>' +
         (commentMode
           ? '<p class="empty-title">Point at anything</p>' +
-          '<p class="empty-sub">Click any element on the page to leave a note. Your feedback turns into a fix automatically.</p>'
+            '<p class="empty-sub">Click any element on the page to leave a note. Your feedback turns into a fix automatically.</p>'
           : '<p class="empty-title">Browsing the app</p>' +
-          '<p class="empty-sub">Navigate freely — clicks work as usual. Switch to Comment mode when you want to leave feedback.</p>');
+            '<p class="empty-sub">Navigate freely — clicks work as usual. Switch to Comment mode when you want to leave feedback.</p>');
       scroll.appendChild(empty);
     } else {
       const hint = document.createElement('p');
@@ -717,7 +743,7 @@ function mountUI(controller, config) {
         : 'Browse mode — clicks use the app. Switch to Comment to add more notes.';
       scroll.appendChild(hint);
 
-      list.forEach(function (a) {
+      list.forEach(function (a, idx) {
         const item = document.createElement('div');
         item.className = 'item' + (a.id === activeId ? ' active' : '');
         item.setAttribute('data-item-id', a.id);
@@ -728,14 +754,13 @@ function mountUI(controller, config) {
 
         const head = document.createElement('div');
         head.className = 'item-hd';
-        const idx = list.indexOf(a) + 1;
         head.innerHTML =
-          '<span class="pin">' + idx + '</span>' +
+          '<span class="pin">' + (idx + 1) + '</span>' +
           '<span class="tag">&lt;<b>' + a.tag + '</b>&gt;</span>';
         const del = document.createElement('button');
         del.className = 'del';
         del.type = 'button';
-        del.setAttribute('aria-label', 'Delete comment ' + idx);
+        del.setAttribute('aria-label', 'Delete comment ' + (idx + 1));
         del.innerHTML = ICON.trash;
         del.addEventListener('click', function () {
           controller.remove(a.id);
@@ -758,48 +783,51 @@ function mountUI(controller, config) {
       });
     }
 
-    // Footer (name + submit) only appears once there is something to send.
-    if (list.length) {
+    // Footer holds the name + submit (when there is something to send) and/or the
+    // status message. Built once so the message node isn't duplicated per branch.
+    if (list.length || message) {
       const ft = document.createElement('div');
       ft.className = 'ft';
 
-      const field = document.createElement('div');
-      field.className = 'field';
-      const label = document.createElement('label');
-      label.textContent = 'Your name';
-      const nameInput = document.createElement('input');
-      nameInput.className = 'name';
-      nameInput.type = 'text';
-      nameInput.placeholder = 'Anonymous';
-      nameInput.value = controller.getReviewer();
-      nameInput.addEventListener('input', function () {
-        controller.setReviewerSilent(nameInput.value);
-      });
-      field.appendChild(label);
-      field.appendChild(nameInput);
-      ft.appendChild(field);
-
-      const submit = document.createElement('button');
-      submit.className = 'submit';
-      submit.type = 'button';
-      submit.innerHTML = ICON.send + '<span>Submit feedback</span>';
-      submit.addEventListener('click', function () {
-        submit.disabled = true;
-        submit.innerHTML = '<span>Sending…</span>';
-        controller.submit().then(function (res) {
-          if (res.ok) {
-            messageKind = 'ok';
-            message = res.jobId
-              ? 'Thanks! Your feedback was submitted — a fix pull request is being generated automatically.'
-              : 'Thank you! Your feedback was submitted.';
-          } else {
-            messageKind = 'err';
-            message = res.error || 'Submission failed.';
-          }
-          controller.render();
+      if (list.length) {
+        const field = document.createElement('div');
+        field.className = 'field';
+        const label = document.createElement('label');
+        label.textContent = 'Your name';
+        const nameInput = document.createElement('input');
+        nameInput.className = 'name';
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Anonymous';
+        nameInput.value = controller.getReviewer();
+        nameInput.addEventListener('input', function () {
+          controller.setReviewerSilent(nameInput.value);
         });
-      });
-      ft.appendChild(submit);
+        field.appendChild(label);
+        field.appendChild(nameInput);
+        ft.appendChild(field);
+
+        const submit = document.createElement('button');
+        submit.className = 'submit';
+        submit.type = 'button';
+        submit.innerHTML = ICON.send + '<span>Submit feedback</span>';
+        submit.addEventListener('click', function () {
+          submit.disabled = true;
+          submit.innerHTML = '<span>Sending…</span>';
+          controller.submit().then(function (res) {
+            if (res.ok) {
+              messageKind = 'ok';
+              message = res.jobId
+                ? 'Thanks! Your feedback was submitted — a fix pull request is being generated automatically.'
+                : 'Thank you! Your feedback was submitted.';
+            } else {
+              messageKind = 'err';
+              message = res.error || 'Submission failed.';
+            }
+            controller.render();
+          });
+        });
+        ft.appendChild(submit);
+      }
 
       if (message) {
         const msg = document.createElement('div');
@@ -807,15 +835,6 @@ function mountUI(controller, config) {
         msg.textContent = message;
         ft.appendChild(msg);
       }
-      panel.appendChild(ft);
-    } else if (message) {
-      // Success clears the list; keep the confirmation visible in a bare footer.
-      const ft = document.createElement('div');
-      ft.className = 'ft';
-      const msg = document.createElement('div');
-      msg.className = 'msg on ' + (messageKind || '');
-      msg.textContent = message;
-      ft.appendChild(msg);
       panel.appendChild(ft);
     }
 
