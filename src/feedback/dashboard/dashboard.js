@@ -19,11 +19,43 @@
   var selectedId = null;
   var pollTimer = null;
 
+  // ---- Small view helpers ---------------------------------------------------
+  var ICON = {
+    file:
+      '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>',
+    external:
+      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg>',
+  };
+
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
     if (text != null) node.textContent = text;
     return node;
+  }
+
+  // Humanize job status ("running-agent" -> "running agent") for display only;
+  // the raw status is kept as a CSS class so styling/state logic is unchanged.
+  function humanize(status) {
+    return String(status || '').replace(/-/g, ' ');
+  }
+
+  function statusPill(status) {
+    return el('span', 'status ' + status, humanize(status));
+  }
+
+  function timeAgo(iso) {
+    var then = new Date(iso).getTime();
+    if (isNaN(then)) return '';
+    var s = Math.max(0, Math.round((Date.now() - then) / 1000));
+    if (s < 60) return 'just now';
+    var m = Math.round(s / 60);
+    if (m < 60) return m + 'm ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.round(h / 24) + 'd ago';
   }
 
   function getJSON(url) {
@@ -59,16 +91,18 @@
     reviews.forEach(function (r) {
       var card = el('li', 'review-card');
       if (r.id === selectedId) card.classList.add('active');
+      card.title = new Date(r.createdAt).toLocaleString();
+
       card.appendChild(el('div', 'who', r.reviewerName));
       var meta = el('div', 'meta');
       meta.textContent =
         r.annotationCount + ' comment' + (r.annotationCount === 1 ? '' : 's') +
-        ' · ' + r.resolvedCount + ' mapped · ' + new Date(r.createdAt).toLocaleString();
+        ' · ' + r.resolvedCount + ' mapped · ' + timeAgo(r.createdAt);
       card.appendChild(meta);
+
       if (r.job) {
-        var status = el('span', 'status ' + r.job.status, r.job.status);
-        status.style.marginTop = '8px';
-        status.style.display = 'inline-block';
+        var status = statusPill(r.job.status);
+        status.style.marginTop = '9px';
         card.appendChild(status);
       }
       card.addEventListener('click', function () {
@@ -82,11 +116,36 @@
     var review = data.review;
     detailEl.innerHTML = '';
     detailEl.appendChild(el('h3', null, 'Review from ' + review.reviewerName));
+
+    // Repo context as discrete mono chips instead of one run-on line.
     var repo = el('div', 'repo');
-    repo.textContent =
-      (review.githubRepo || 'local repository') + ' · ' + review.baseBranch + ' @ ' +
-      review.baseCommit.slice(0, 8) + ' · route ' + review.route;
+    function chip(label, value) {
+      var c = el('span', 'repo-chip');
+      c.innerHTML = (label ? label + ' ' : '') + '<b></b>';
+      c.querySelector('b').textContent = value;
+      return c;
+    }
+    repo.appendChild(chip('', review.githubRepo || 'local repository'));
+    repo.appendChild(chip('branch', review.baseBranch));
+    repo.appendChild(chip('commit', review.baseCommit.slice(0, 8)));
+    repo.appendChild(chip('route', review.route));
     detailEl.appendChild(repo);
+
+    // Stat strip: comments / mapped / unmapped.
+    var mapped = review.annotations.filter(function (a) {
+      return a.mapping.confidence !== 'unresolved';
+    }).length;
+    var stats = el('div', 'stats');
+    function stat(cls, n, k) {
+      var s = el('div', 'stat' + (cls ? ' ' + cls : ''));
+      s.appendChild(el('div', 'n', String(n)));
+      s.appendChild(el('span', 'k', k));
+      return s;
+    }
+    stats.appendChild(stat('', review.annotations.length, 'comments'));
+    stats.appendChild(stat('mapped', mapped, 'mapped'));
+    stats.appendChild(stat('unmapped', review.annotations.length - mapped, 'unmapped'));
+    detailEl.appendChild(stats);
 
     review.annotations.forEach(function (a) {
       var box = el('div', 'annotation');
@@ -96,7 +155,11 @@
       head.appendChild(el('span', 'badge ' + a.mapping.confidence, a.mapping.confidence));
       box.appendChild(head);
       box.appendChild(el('div', 'comment', a.comment));
-      box.appendChild(el('span', 'source-chip', sourceLabel(a.mapping)));
+
+      var src = el('span', 'source-chip');
+      src.innerHTML = ICON.file;
+      src.appendChild(document.createTextNode(' ' + sourceLabel(a.mapping)));
+      box.appendChild(src);
       detailEl.appendChild(box);
     });
 
@@ -142,12 +205,12 @@
     if (old) old.remove();
     var panel = el('div', 'job-panel');
     var h = el('h4');
-    h.appendChild(document.createTextNode('Job '));
-    h.appendChild(el('span', 'status ' + job.status, job.status));
+    h.appendChild(document.createTextNode('Fix job'));
+    h.appendChild(statusPill(job.status));
     panel.appendChild(h);
 
     if (job.changedFiles && job.changedFiles.length) {
-      panel.appendChild(el('div', null, 'Files changed:'));
+      panel.appendChild(el('div', 'section-label', 'Files changed'));
       var files = el('ul', 'files');
       job.changedFiles.forEach(function (f) {
         files.appendChild(el('li', null, f));
@@ -156,6 +219,7 @@
     }
 
     if (job.verification) {
+      panel.appendChild(el('div', 'section-label', 'Verification'));
       var checks = el('ul', 'checks');
       job.verification.checks.forEach(function (c) {
         var cls = c.skipped ? 'skip' : c.ok ? 'ok' : 'bad';
@@ -165,11 +229,12 @@
     }
 
     if (job.status === 'pr-opened' && job.prUrl) {
-      var link = el('a', 'pr-link', 'View draft pull request →');
+      var link = el('a', 'pr-link');
       link.href = job.prUrl;
       link.target = '_blank';
       link.rel = 'noopener';
-      panel.appendChild(el('div', null, ''));
+      link.innerHTML = ICON.external;
+      link.appendChild(document.createTextNode(' View draft pull request'));
       panel.appendChild(link);
     }
 
@@ -183,6 +248,7 @@
       var logBtn = el('button', 'ghost', 'Show agent log');
       var logPre = el('pre', 'log');
       logPre.hidden = true;
+      logBtn.style.marginTop = '14px';
       logBtn.addEventListener('click', function () {
         if (!logPre.hidden) {
           logPre.hidden = true;

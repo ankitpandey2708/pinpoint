@@ -1,31 +1,75 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Pin Point — Developer Dashboard</title>
+    <title>Pinpoint — Fix Console</title>
     <link rel="stylesheet" href="/__pinpoint__/dashboard.css" />
   </head>
   <body>
+    <div class="grid-bg" aria-hidden="true"></div>
+
     <header class="topbar">
-      <div class="brand"><span class="dot"></span> Pin Point</div>
-      <div class="sub">Visual feedback → draft pull request</div>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <circle cx="12" cy="12" r="7" />
+            <path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" />
+            <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="word">PINPOINT</span>
+          <span class="tag">Visual feedback → draft pull request</span>
+        </span>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span class="legend-item"><i class="swatch direct"></i>direct</span>
+        <span class="legend-item"><i class="swatch approximate"></i>approx</span>
+        <span class="legend-item"><i class="swatch unresolved"></i>unmapped</span>
+      </div>
     </header>
+
     <main class="layout">
-      <section class="col reviews-col">
+      <aside class="col reviews-col">
         <div class="col-head">
           <h2>Reviews</h2>
-          <button id="refresh" class="ghost" type="button">Refresh</button>
+          <button id="refresh" class="ghost" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 11a8 8 0 1 0-.9 4.5" /><path d="M20 5v6h-6" />
+            </svg>
+            Refresh
+          </button>
         </div>
         <ul id="review-list" class="review-list"></ul>
-        <p id="reviews-empty" class="empty" hidden>No reviews submitted yet.</p>
-      </section>
+        <div id="reviews-empty" class="empty-state" hidden>
+          <span class="empty-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+              <circle cx="12" cy="12" r="7" /><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" />
+              <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <p class="empty-title">No reviews yet</p>
+          <p class="empty-sub">Feedback submitted from the review overlay lands here.</p>
+        </div>
+      </aside>
+
       <section class="col detail-col">
         <div id="detail" class="detail">
-          <p class="empty">Select a review to inspect its feedback.</p>
+          <div class="empty-state big">
+            <span class="empty-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+                <circle cx="12" cy="12" r="7" /><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" />
+                <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
+            <p class="empty-title">Nothing selected</p>
+            <p class="empty-sub">Pick a review from the left to inspect its feedback, source mappings, and fix job.</p>
+          </div>
         </div>
       </section>
     </main>
+
     <script src="/__pinpoint__/dashboard.js" defer></script>
   </body>
 </html>
