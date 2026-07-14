@@ -1,14 +1,38 @@
 {
-  "name": "pinpoint",
+  "name": "@ankitpandey2708/pinpoint",
   "version": "0.1.0",
-  "private": true,
   "description": "Local-first visual review tool that turns element-specific client feedback into draft GitHub pull requests.",
+  "keywords": [
+    "code-review",
+    "visual-review",
+    "feedback",
+    "github",
+    "pull-request",
+    "claude",
+    "cli"
+  ],
+  "author": "Ankit Pandey <ankit.p@realfast.ai>",
+  "license": "MIT",
+  "homepage": "https://github.com/ankitpandey2708/pinpoint#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ankitpandey2708/pinpoint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ankitpandey2708/pinpoint/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "pinpoint": "dist/app/index.js"
   },
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build:overlay": "node scripts/build-overlay.mjs",
     "kill": "tsx src/app/index.ts kill",

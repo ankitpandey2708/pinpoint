@@ -24,12 +24,22 @@ to merge.
 
 Supported project types in this version: plain HTML/CSS/JS, React, and Next.js.
 
-## Install and verify (Windows PowerShell)
+## Install
+
+From npm — no clone required:
+
+```powershell
+npx @ankitpandey2708/pinpoint <path-to-repo>   # run on demand
+# or install the `pinpoint` command globally:
+npm install -g @ankitpandey2708/pinpoint
+pinpoint <path-to-repo>                         # omit the path to review the current repo
+```
+
+To develop Pin Point itself, clone this repo and build from source:
 
 ```powershell
 npm install
 npm run typecheck
-npm test
 npm run build
 ```
 
@@ -42,11 +52,12 @@ npm run dev -- C:\Users\akp\Downloads\pinpoint
 Run `npm run dev` with no path to review the current repository.
 
 Pin Point inspects the repository, starts an instrumented preview, and prints two
-URLs:
+URLs (the preferred port is 7777; startup steps up to the next free port if it is
+taken, so parallel reviews get 7778, 7779, …):
 
 ```text
-Review link (send to your client): http://localhost:3000/review/<projectId>
-Developer dashboard:               http://localhost:3000/dashboard
+Review link (local):    http://localhost:7777/review/<projectId>
+Developer dashboard:    http://localhost:7777/dashboard?token=<devToken>
 ```
 
 Send the **review link** to your client. Open the **dashboard** yourself.
@@ -113,13 +124,17 @@ Press **Ctrl+C** to stop (it shuts down the preview and releases the port).
 
 ## Data and cleanup
 
-Runtime state is local JSON under `data/` (`projects.json`, `reviews.json`,
-`jobs.json`, sanitized `logs/`). Temporary preview copies and worktrees live under
-`.pinpoint/`. Both are git-ignored. Delete them to reset:
+Runtime state is local JSON under `~/.pinpoint/data/` (`projects.json`,
+`reviews.json`, `jobs.json`, sanitized `logs/`) — a single per-user store shared
+across runs, wherever you launch Pin Point from. Temporary preview copies and
+worktrees live under the OS temp directory (`%TEMP%\pp\<hash>` on Windows). Delete
+them to reset:
 
 ```powershell
-Remove-Item -Recurse -Force data\*.json, data\logs, .pinpoint -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force $env:USERPROFILE\.pinpoint, $env:TEMP\pp -ErrorAction SilentlyContinue
 ```
+
+`pinpoint kill` also stops any running sessions and clears their workspaces.
 
 ## Safety model
 
@@ -132,7 +147,7 @@ for the full specification.
 ## Development
 
 ```powershell
-npm run test:watch     # watch mode
+npm run dev            # build overlay, then run from TS source via tsx
 npm run typecheck      # tsc --noEmit
 npm run build          # compile to dist/
 ```
