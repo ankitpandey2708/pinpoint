@@ -27,16 +27,9 @@ function insertBefore(html: string, marker: RegExp, snippet: string, fallbackPre
 }
 
 /**
- * For already-instrumented static HTML (overlay css/js links present): inject
- * only the per-page config script before `</head>`.
- */
-export function injectStaticConfig(html: string, ctx: OverlayContext): string {
-  return insertBefore(html, /<\/head>/i, `${overlayConfigScript(ctx)}\n`, true);
-}
-
-/**
- * For proxied framework HTML (no overlay references yet): inject the overlay
- * css + config before `</head>` and the overlay script before `</body>`.
+ * Inject the overlay into a preview page (framework proxy or static serve): the
+ * overlay css + per-page config before `</head>` and the overlay bundle before
+ * `</body>`.
  */
 export function injectFullOverlay(html: string, ctx: OverlayContext): string {
   const headSnippet =

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { normalize, join, sep } from 'node:path';
 import type { RequestHandler } from 'express';
-import { injectStaticConfig } from './inject';
+import { injectFullOverlay } from './inject';
 import { proxyRequest } from './proxy';
 import type { PreviewRegistry } from './registry';
 
@@ -70,7 +70,9 @@ export function createReviewMiddleware(previews: PreviewRegistry): RequestHandle
       const type = contentTypeFor(abs);
       if (HTML_EXT.test(abs)) {
         const html = await readFile(abs, 'utf8');
-        const injected = injectStaticConfig(html, {
+        // Static HTML is no longer instrumented, so inject the full overlay
+        // (css + config + bundle) at serve time rather than just the config.
+        const injected = injectFullOverlay(html, {
           projectId,
           reviewKey: session.project.baseCommit,
           route: rest,

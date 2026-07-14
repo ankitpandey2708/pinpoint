@@ -5,7 +5,7 @@ import { get as httpGet } from 'node:http';
 import type { ChildProcess } from 'node:child_process';
 import { runProcess, spawnCommand, killProcessTree, redactSecrets } from '../platform/process';
 import { withPort } from './repository';
-import type { Project, SourceMapping } from '../app/types';
+import type { Project } from '../app/types';
 import type { PreviewWorkspace } from './workspace';
 
 export type PreviewMode = 'static' | 'proxy';
@@ -14,9 +14,8 @@ export interface PreviewRuntime {
   mode: PreviewMode;
   /** Internal loopback URL of a framework dev server (proxy mode only). */
   url?: string;
-  /** Served, instrumented directory (static mode only). */
+  /** Served directory (static mode only). */
   siteDir?: string;
-  mappings: SourceMapping[];
   logs: string[];
   stop(): Promise<void>;
 }
@@ -75,7 +74,6 @@ export async function startPreview(
     return {
       mode: 'static',
       siteDir: workspace.siteDir,
-      mappings: workspace.mappings,
       logs: [],
       stop: async () => {},
     };
@@ -127,7 +125,6 @@ export async function startPreview(
   return {
     mode: 'proxy',
     url,
-    mappings: workspace.mappings,
     logs,
     stop,
   };

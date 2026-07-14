@@ -1,4 +1,8 @@
-import type { OverlayUrls } from './instrumentation/types';
+/** URLs of the Pinpoint-owned browser assets injected into a preview page. */
+export interface OverlayUrls {
+  css: string;
+  js: string;
+}
 
 /** All Pinpoint-owned browser assets and APIs live under this path prefix. */
 export const PINPOINT_BASE = '/__pinpoint__';

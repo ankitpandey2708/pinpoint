@@ -68,8 +68,6 @@ export interface ClientSourceFrame {
 
 /** A source location for a selected element (server-validated). */
 export interface SourceMapping {
-  /** Legacy instrumented-element id (static HTML path only). */
-  elementId?: string;
   sourceFile?: string;
   component?: string;
   line?: number;
@@ -79,10 +77,9 @@ export interface SourceMapping {
 }
 
 /**
- * What the client overlay captures per selected element. The framework path
- * carries an element-source-resolved `source`/`stack`; the static path carries a
- * legacy `elementId`. Both carry presentation context and the comment — never
- * repo/credential fields.
+ * What the client overlay captures per selected element: an element-source
+ * `source`/`stack` (empty for static HTML, which has no framework runtime) plus
+ * presentation context and the comment — never repo/credential fields.
  */
 export interface ClientAnnotation {
   route: string;
@@ -96,8 +93,6 @@ export interface ClientAnnotation {
   visibleText: string;
   nearbyText: string;
   comment: string;
-  /** Legacy instrumented id, present only for static HTML previews. */
-  elementId?: string;
 }
 
 /** A stored annotation: client context plus server-resolved source mapping. */

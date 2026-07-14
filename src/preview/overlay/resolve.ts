@@ -38,8 +38,6 @@ export interface EnrichedTarget {
   /** Trimmed opening-tag snippet of what was clicked (agent grounding). */
   outerHtml: string;
   classes: string[];
-  /** Legacy instrumented id, if present — the static-HTML fallback locator. */
-  elementId: string | null;
 }
 
 const MAX_TEXT = 200;
@@ -114,10 +112,8 @@ export async function resolveTarget(el: Element): Promise<EnrichedTarget> {
   const source = normalizeFrame(info?.source) ?? stack[0] ?? null;
 
   const parentText = el.parentElement ? el.parentElement.textContent || '' : '';
-  const idEl = el.closest ? el.closest('[data-pinpoint-id]') : null;
   return {
     tag: el.tagName.toLowerCase(),
-    elementId: idEl ? idEl.getAttribute('data-pinpoint-id') : null,
     componentName:
       (typeof info?.componentName === 'string' ? (info!.componentName as string) : null) ??
       source?.componentName ??

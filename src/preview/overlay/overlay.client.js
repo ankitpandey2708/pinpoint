@@ -107,7 +107,6 @@ function buildController(config) {
           classes: t.classes,
           visibleText: t.visibleText,
           nearbyText: t.nearbyText,
-          elementId: t.elementId,
           comment: '',
         });
         liveElements[id] = el;
@@ -162,7 +161,6 @@ function buildController(config) {
           classes: a.classes,
           visibleText: a.visibleText,
           nearbyText: a.nearbyText,
-          elementId: a.elementId,
           comment: a.comment,
         };
       });

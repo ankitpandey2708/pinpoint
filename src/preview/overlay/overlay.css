@@ -28,7 +28,3 @@
   border-color: #8b7dff;
   background: rgba(109, 94, 252, 0.2);
 }
-
-[data-pinpoint-id]:hover {
-  cursor: crosshair;
-}

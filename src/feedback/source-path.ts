@@ -50,3 +50,19 @@ export function toTrackedPath(rawPath: string | null | undefined, tracked: Set<s
   }
   return best;
 }
+
+/**
+ * Resolve the HTML source file that serves a static route, mirroring the static
+ * preview server's route→file rule (append the html entry for directory-style
+ * routes). Falls back to the project's html entry when the route does not map to
+ * a tracked file. Returns null if neither resolves.
+ */
+export function staticSourceFile(
+  route: string,
+  htmlEntry: string | undefined,
+  tracked: Set<string>,
+): string | null {
+  let rel = (route || '/').replace(/[?#].*$/, '').replace(/^\/+/, '');
+  if (rel === '' || rel.endsWith('/')) rel += htmlEntry ?? 'index.html';
+  return toTrackedPath(rel, tracked) ?? (htmlEntry ? toTrackedPath(htmlEntry, tracked) : null);
+}

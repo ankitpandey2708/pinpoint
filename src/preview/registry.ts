@@ -1,14 +1,12 @@
-import type { Project, SourceMapping } from '../app/types';
+import type { Project } from '../app/types';
 
 export interface PreviewSession {
   project: Project;
   mode: 'static' | 'proxy';
-  /** Served instrumented directory (static mode). */
+  /** Served directory (static mode). */
   siteDir?: string;
   /** Internal loopback URL of a framework dev server (proxy mode). */
   proxyUrl?: string;
-  mappings: SourceMapping[];
-  mappingById: Map<string, SourceMapping>;
   stop(): Promise<void>;
 }
 

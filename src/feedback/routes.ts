@@ -12,7 +12,7 @@ import type {
   SubmittedReview,
   AgentJob,
 } from '../app/types';
-import { loadTrackedFiles, toTrackedPath } from './source-path';
+import { loadTrackedFiles, toTrackedPath, staticSourceFile } from './source-path';
 
 const MAX_REVIEWER = 120;
 const MAX_ANNOTATIONS = 300;
@@ -72,7 +72,6 @@ function extractClientAnnotation(raw: unknown): ClientAnnotation | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
   const r = raw as Record<string, unknown>;
   const source = parseFrame(r.source);
-  const elementId = typeof r.elementId === 'string' ? r.elementId : undefined;
   const rawStack = Array.isArray(r.stack) ? r.stack : [];
   const stack = rawStack
     .map(parseFrame)
@@ -92,7 +91,6 @@ function extractClientAnnotation(raw: unknown): ClientAnnotation | undefined {
     visibleText: str(r.visibleText, MAX_TEXT),
     nearbyText: str(r.nearbyText, MAX_TEXT),
     comment: typeof r.comment === 'string' ? r.comment : '',
-    elementId,
   };
 }
 
@@ -139,7 +137,12 @@ async function submitReview(deps: ApiDeps, req: Request, res: Response): Promise
     const s = raw && typeof raw === 'object' ? (raw as Record<string, unknown>).source : undefined;
     return Boolean(s && typeof s === 'object' && typeof (s as Record<string, unknown>).filePath === 'string');
   });
-  const tracked = anyResolvedSource ? await loadTrackedFiles(project.repoPath) : new Set<string>();
+  // Framework annotations carry a source path; static ones resolve to the HTML
+  // file serving their route. Either way we need the tracked-file set to anchor.
+  const tracked =
+    anyResolvedSource || project.framework === 'static'
+      ? await loadTrackedFiles(project.repoPath)
+      : new Set<string>();
 
   const annotations: Annotation[] = [];
   let index = 0;
@@ -168,14 +171,16 @@ async function submitReview(deps: ApiDeps, req: Request, res: Response): Promise
         tag: client.tag || 'div',
         confidence: sourceFile ? 'direct' : 'unresolved',
       };
-    } else if (client.elementId) {
-      // Static path: resolve the legacy instrumented id from the private manifest.
-      const m = session.mappingById.get(client.elementId);
-      if (!m) {
-        res.status(400).json({ error: `unknown element: ${client.elementId}` });
-        return;
-      }
-      mapping = { ...m };
+    } else if (project.framework === 'static') {
+      // Static path: no framework runtime to resolve a component, so the source
+      // is the HTML file serving this route. The agent localizes the exact
+      // element within that file using the enriched context (outerHtml/text).
+      const sourceFile = staticSourceFile(client.route || route, project.htmlEntry, tracked);
+      mapping = {
+        sourceFile: sourceFile ?? undefined,
+        tag: client.tag || 'div',
+        confidence: sourceFile ? 'direct' : 'unresolved',
+      };
     } else {
       // No locator resolved (e.g. a non-framework element with no source).
       mapping = { tag: client.tag || 'div', confidence: 'unresolved' };

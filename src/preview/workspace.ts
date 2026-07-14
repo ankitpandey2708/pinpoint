@@ -1,11 +1,8 @@
 import { link, mkdir, readFile, readdir, readlink, rm, symlink, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { basename, join, relative, sep } from 'node:path';
+import { basename, join } from 'node:path';
 import { runProcess } from '../platform/process';
-import { instrumentHtml } from './instrumentation/html';
-import { instrumentJsx } from './instrumentation/jsx';
-import { OVERLAY_URLS } from './constants';
-import type { Project, SourceMapping } from '../app/types';
+import type { Project } from '../app/types';
 
 export interface PreviewWorkspace {
   id: string;
@@ -13,9 +10,6 @@ export interface PreviewWorkspace {
   dir: string;
   /** The served copy of the repository. */
   siteDir: string;
-  /** Private mapping manifest, kept outside the served root. */
-  manifestPath: string;
-  mappings: SourceMapping[];
   project: Project;
   cleanup(): Promise<void>;
 }
@@ -25,16 +19,16 @@ export interface CreatePreviewOptions {
   workRoot: string;
 }
 
-const HTML_EXT = /\.html?$/i;
-const JSX_EXT = /\.(jsx|tsx)$/i;
 // Files that must never be served to a review client, even if a repository has
 // committed them. The preview can be exposed publicly through a tunnel, so this
 // is defense-in-depth on top of the repo's own .gitignore.
 const SENSITIVE_FILE = /^(?:\.env(?:\..*)?|\.(?:npmrc|yarnrc|pnpmrc|netrc)|.*\.(?:pem|key|p12|pfx))$/i;
 
 /**
- * Create an isolated, instrumented copy of a project's repository. The original
- * repository is never modified.
+ * Create an isolated copy of a project's repository to serve the preview from.
+ * The original repository is never modified, and no source files are rewritten:
+ * click-to-source mapping happens at runtime (element-source) / at serve time,
+ * not via build-time instrumentation.
  *
  * The copy is a detached `git worktree` at the project's base commit rather than
  * a raw file copy. This means the repo's own `.gitignore` decides what is a
@@ -44,9 +38,7 @@ const SENSITIVE_FILE = /^(?:\.env(?:\..*)?|\.(?:npmrc|yarnrc|pnpmrc|netrc)|.*\.(
  * no hand-maintained denylist to drift out of sync with a given repository.
  *
  * The repository's installed `node_modules` is reused by hard-linking it so the
- * dev server boots without a fresh install. HTML or JSX/TSX inside the worktree
- * is then instrumented, and a private manifest of mappings is written outside
- * the served root so review clients cannot fetch it.
+ * dev server boots without a fresh install.
  */
 export async function createPreviewWorkspace(
   project: Project,
@@ -54,7 +46,6 @@ export async function createPreviewWorkspace(
 ): Promise<PreviewWorkspace> {
   const dir = join(options.workRoot, project.id);
   const siteDir = join(dir, 'site');
-  const manifestPath = join(dir, 'manifest.json');
 
   // Garbage-collect workspaces left by previous runs that died without cleanup
   // (e.g. a hard kill), then clear any remnant for this project id.
@@ -97,19 +88,10 @@ export async function createPreviewWorkspace(
 
   await scrubSensitive(siteDir);
 
-  const mappings =
-    project.framework === 'static'
-      ? await instrumentStatic(siteDir)
-      : await instrumentSources(siteDir);
-
-  await writeFile(manifestPath, JSON.stringify({ mappings }, null, 2), 'utf8');
-
   return {
     id: project.id,
     dir,
     siteDir,
-    manifestPath,
-    mappings,
     project,
     cleanup: () => destroyWorkspace(project.repoPath, dir, siteDir),
   };
@@ -245,9 +227,9 @@ async function collectTree(
 }
 
 /**
- * List regular files under `root`, pruning `node_modules` (present as a reused
- * junction) and `.git` so instrumentation never descends into dependencies or
- * git internals.
+ * List regular files under `root`, pruning `node_modules` (present as reused
+ * hard links) and `.git` so the sensitive-file scan never descends into
+ * dependencies or git internals.
  */
 async function listFiles(root: string): Promise<string[]> {
   const files: string[] = [];
@@ -274,36 +256,4 @@ async function scrubSensitive(siteDir: string): Promise<void> {
       .filter((f) => SENSITIVE_FILE.test(basename(f)))
       .map((f) => rm(f, { force: true }).catch(() => {})),
   );
-}
-
-async function instrumentStatic(siteDir: string): Promise<SourceMapping[]> {
-  const files = (await listFiles(siteDir)).filter((f) => HTML_EXT.test(f));
-  const mappings: SourceMapping[] = [];
-  for (const file of files) {
-    const rel = relative(siteDir, file).replace(/\\/g, '/');
-    const html = await readFile(file, 'utf8');
-    const result = instrumentHtml(html, rel, OVERLAY_URLS);
-    await writeFile(file, result.content, 'utf8');
-    mappings.push(...result.mappings);
-  }
-  return mappings;
-}
-
-async function instrumentSources(siteDir: string): Promise<SourceMapping[]> {
-  const files = (await listFiles(siteDir)).filter((f) => JSX_EXT.test(f));
-  const mappings: SourceMapping[] = [];
-  for (const file of files) {
-    const rel = relative(siteDir, file).replace(/\\/g, '/');
-    const source = await readFile(file, 'utf8');
-    try {
-      const result = instrumentJsx(source, rel);
-      if (result.mappings.length > 0) {
-        await writeFile(file, result.content, 'utf8');
-        mappings.push(...result.mappings);
-      }
-    } catch {
-      // Skip files that fail to parse; they are simply not instrumented.
-    }
-  }
-  return mappings;
 }

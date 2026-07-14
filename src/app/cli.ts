@@ -133,12 +133,6 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
     mode: runtime.mode,
     siteDir: runtime.siteDir,
     proxyUrl: runtime.url,
-    mappings: runtime.mappings,
-    mappingById: new Map(
-      runtime.mappings
-        .filter((m): m is typeof m & { elementId: string } => typeof m.elementId === 'string')
-        .map((m) => [m.elementId, m]),
-    ),
     stop: async () => {
       await runtime.stop();
       await workspace.cleanup();
