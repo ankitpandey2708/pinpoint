@@ -1,30 +1,41 @@
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { killProcessesReferencing } from '../platform/process';
+import { killProcessesMatching } from '../platform/process';
 
 /**
  * Temp roots Pinpoint has used for per-session workspaces, across every repo and
  * dataRoot on this machine. `pp` is the current layout (see realServices in
- * ../app/cli); older builds used `pinpoint-runtime`. The kill scope is
- * repo-independent by design — the workspace path is the one signal that
- * identifies a session.
+ * ../app/cli); older builds used `pinpoint-runtime`.
  */
 const WORKSPACE_ROOTS = [join(tmpdir(), 'pp'), join(tmpdir(), 'pinpoint-runtime')];
+const norm = (s: string): string => s.replace(/\\/g, '/').toLowerCase();
+const WORKSPACE_NEEDLES = WORKSPACE_ROOTS.map(norm);
 
 /**
- * Kill every Pinpoint-spawned session on this machine and clear its workspace
- * debris — the blunt manual escape hatch (`pinpoint kill`) for wedged state
- * where a run died without clean teardown and left orphaned dev-server trees
- * (holding ports and file locks) or undeletable workspaces. The on-exit reaping
- * and orphan-only startup prune cover the normal case; this covers the rest.
- *
- * First principle: a session's processes and files all live under a workspace
- * root, so the whole job is kill-what-references-a-root, then delete the roots.
- * Returns the number of processes killed.
+ * True for any process belonging to a Pinpoint session on this machine:
+ * - the Pinpoint server itself — it runs the Pinpoint entrypoint, matched by
+ *   both `pinpoint` and `app/index.(ts|js)` in its command line so an unrelated
+ *   `node app/index.js` elsewhere is never caught. Tree-killing it reaps its
+ *   spawned preview and its cloudflared tunnel (both are its children).
+ * - a spawned framework dev-server tree (or an orphan of one) — it runs with its
+ *   cwd inside a workspace, so its command line references a workspace root.
+ */
+function isPinpointProcess(command: string): boolean {
+  const c = norm(command);
+  if (WORKSPACE_NEEDLES.some((n) => c.includes(n))) return true;
+  return c.includes('pinpoint') && (c.includes('app/index.ts') || c.includes('app/index.js'));
+}
+
+/**
+ * Kill every Pinpoint session on this machine — servers, their spawned preview
+ * trees, and their cloudflared tunnels — and clear all workspace debris. The
+ * blunt manual escape hatch (`pinpoint kill`) for wedged/leftover state; the
+ * on-exit reaping and orphan-only startup prune cover the normal case. Never
+ * targets the current process. Returns the number of processes killed.
  */
 export async function killAllSessions(): Promise<number> {
-  const killed = await killProcessesReferencing(WORKSPACE_ROOTS);
+  const killed = await killProcessesMatching(isPinpointProcess);
   await Promise.all(
     WORKSPACE_ROOTS.map((root) =>
       // The `\\?\` extended-length prefix lets Node delete node_modules trees

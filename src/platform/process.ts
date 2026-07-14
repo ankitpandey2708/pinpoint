@@ -203,22 +203,29 @@ async function listProcesses(): Promise<Array<{ pid: number; command: string }>>
 }
 
 /**
- * Force-kill every process whose command line references any of `paths`
- * (normalized, case-insensitive), and resolve once all kills are dispatched.
- * Reaps orphaned dev-server trees still rooted in a dead session's workspace so
- * its files unlock before deletion. One process snapshot serves every path;
- * never targets the current process. Returns how many processes were killed.
+ * Force-kill (tree-kill) every running process whose command line satisfies
+ * `match`, and resolve once all kills are dispatched. One process snapshot;
+ * never targets the current process. Returns how many were killed.
  */
-export async function killProcessesReferencing(paths: string[]): Promise<number> {
-  const needles = paths.map((p) => p.replace(/\\/g, '/').toLowerCase());
-  if (needles.length === 0) return 0;
-  const victims = (await listProcesses()).filter((p) => {
-    if (!p.pid || p.pid === process.pid) return false;
-    const cmd = p.command.replace(/\\/g, '/').toLowerCase();
-    return needles.some((n) => cmd.includes(n));
-  });
+export async function killProcessesMatching(match: (command: string) => boolean): Promise<number> {
+  const victims = (await listProcesses()).filter((p) => p.pid && p.pid !== process.pid && match(p.command));
   await Promise.all(victims.map((v) => killProcessTree(v.pid)));
   return victims.length;
+}
+
+/**
+ * Force-kill every process whose command line references any of `paths`
+ * (normalized, case-insensitive). Reaps orphaned dev-server trees still rooted
+ * in a dead session's workspace so its files unlock before deletion. Returns how
+ * many processes were killed.
+ */
+export function killProcessesReferencing(paths: string[]): Promise<number> {
+  const needles = paths.map((p) => p.replace(/\\/g, '/').toLowerCase());
+  if (needles.length === 0) return Promise.resolve(0);
+  return killProcessesMatching((command) => {
+    const cmd = command.replace(/\\/g, '/').toLowerCase();
+    return needles.some((n) => cmd.includes(n));
+  });
 }
 
 /**
