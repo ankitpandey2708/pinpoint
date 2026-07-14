@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin Point — Developer Dashboard</title>
+    <link rel="stylesheet" href="/__pinpoint__/dashboard.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="dot"></span> Pin Point</div>
+      <div class="sub">Visual feedback → draft pull request</div>
+    </header>
+    <main class="layout">
+      <section class="col reviews-col">
+        <div class="col-head">
+          <h2>Reviews</h2>
+          <button id="refresh" class="ghost" type="button">Refresh</button>
+        </div>
+        <ul id="review-list" class="review-list"></ul>
+        <p id="reviews-empty" class="empty" hidden>No reviews submitted yet.</p>
+      </section>
+      <section class="col detail-col">
+        <div id="detail" class="detail">
+          <p class="empty">Select a review to inspect its feedback.</p>
+        </div>
+      </section>
+    </main>
+    <script src="/__pinpoint__/dashboard.js" defer></script>
+  </body>
+</html>

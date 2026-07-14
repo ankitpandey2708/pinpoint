@@ -1,0 +1,30 @@
+/*
+ * Pinpoint review overlay styling for framework (React/Next) previews, where the
+ * overlay CSS is injected as a linked stylesheet rather than inlined into the
+ * Shadow DOM. The picker UI itself renders inside a Shadow root and carries its
+ * own styles; these rules only cover the hover/selection highlight layer drawn
+ * over host page elements. All selectors are namespaced so they never leak into
+ * the reviewed page's own styling.
+ */
+
+.pinpoint-highlight-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483646;
+}
+
+.pinpoint-outline {
+  position: absolute;
+  border: 2px solid #6d5efc;
+  border-radius: 4px;
+  background: rgba(109, 94, 252, 0.12);
+  pointer-events: none;
+  transition: all 60ms ease-out;
+}
+
+.pinpoint-outline--selected {
+  border-style: solid;
+  border-color: #8b7dff;
+  background: rgba(109, 94, 252, 0.2);
+}
