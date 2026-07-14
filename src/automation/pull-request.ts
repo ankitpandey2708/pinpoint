@@ -1,7 +1,11 @@
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runProcess } from '../platform/process';
+import { runProcess, redactSecrets } from '../platform/process';
+
+/** GitHub host used for credential lookups and the REST API base. */
+const GITHUB_HOST = 'github.com';
+const GITHUB_API = 'https://api.github.com';
 
 export interface DraftPrInput {
   /** Directory to run git/gh from (the worktree, which has the branch checked out). */
@@ -28,18 +32,54 @@ async function run(base: string[], args: string[], cwd: string, env?: NodeJS.Pro
   return runProcess(base[0], [...base.slice(1), ...args], { cwd, env, timeoutMs: 120_000 });
 }
 
-/**
- * Preflight: confirm the GitHub CLI is installed and authenticated so the draft
- * PR step won't surprise-fail after an agent has already run. `gh auth status`
- * exits nonzero when `gh` is missing or the user is signed out.
- */
-export async function checkGitHubAuth(gh: string[] = ['gh']): Promise<void> {
+/** True when the GitHub CLI is installed and authenticated. */
+export async function ghAuthenticated(gh: string[] = ['gh']): Promise<boolean> {
   const res = await runProcess(gh[0], [...gh.slice(1), 'auth', 'status'], { timeoutMs: 15_000 });
-  if (res.code !== 0) {
-    throw new Error(
-      'GitHub CLI authentication is unavailable. Install the GitHub CLI and run `gh auth login` before starting a review.',
-    );
-  }
+  return res.code === 0;
+}
+
+/**
+ * Ask git for the HTTPS credential it would use to push to `host`, via
+ * `git credential fill`. Returns the token that the OS credential helper
+ * (Git Credential Manager on Windows, Keychain on macOS, libsecret on Linux)
+ * hands back as the `password`, or undefined when none is available (e.g.
+ * SSH-only setups — SSH keys can't authenticate the REST API anyway).
+ *
+ * Runs non-interactively (`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`) with
+ * a timeout so a missing credential can never pop a prompt or hang the server.
+ * Uses `raw` so redaction does not scrub the `password=` line we must read; the
+ * result is consumed immediately and never logged.
+ */
+export async function gitCredentialToken(
+  cwd?: string,
+  host: string = GITHUB_HOST,
+  git: string[] = ['git'],
+): Promise<string | undefined> {
+  const res = await runProcess(git[0], [...git.slice(1), 'credential', 'fill'], {
+    cwd,
+    input: `protocol=https\nhost=${host}\n\n`,
+    timeoutMs: 15_000,
+    raw: true,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
+  });
+  if (res.code !== 0) return undefined;
+  const token = /^password=(.*)$/m.exec(res.stdout)?.[1]?.trim();
+  return token || undefined;
+}
+
+/**
+ * Preflight: confirm we can ultimately open a draft PR, so the step won't
+ * surprise-fail after an agent has already run. Passes when the GitHub CLI is
+ * authenticated OR git has a usable HTTPS credential for github.com. Runs from
+ * `cwd` so repo-scoped credential config is respected.
+ */
+export async function checkGitHubAuth(cwd?: string, gh: string[] = ['gh']): Promise<void> {
+  if (await ghAuthenticated(gh)) return;
+  if (await gitCredentialToken(cwd)) return;
+  throw new Error(
+    'No GitHub authentication available. Either run `gh auth login`, or make sure ' +
+      '`git push` to github.com works over HTTPS (a stored Git credential) before starting a review.',
+  );
 }
 
 /** Extract `{ url, number }` from gh's output (the PR URL). */
@@ -98,4 +138,78 @@ export async function createDraftPullRequest(input: DraftPrInput): Promise<{ url
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * Push the branch and open a DRAFT pull request through the GitHub REST API,
+ * using a token obtained outside the `gh` CLI (from `git credential fill`). The
+ * token is sent only to api.github.com over HTTPS and is never logged; API error
+ * bodies are redacted defensively before surfacing. Never force-pushes.
+ */
+export async function createDraftPullRequestViaApi(
+  input: DraftPrInput,
+  token: string,
+): Promise<{ url: string; number: number }> {
+  const gitBase = input.git ?? ['git'];
+  const remote = input.remote ?? 'origin';
+  if (!input.repo) {
+    throw new Error('cannot open a pull request via the API without an owner/repo');
+  }
+
+  // 1. Push the branch (git's own credentials, upstream tracking, never force).
+  const push = await run(gitBase, ['push', '-u', remote, input.branch], input.cwd, input.env);
+  if (push.code !== 0) {
+    throw new Error(`git push failed: ${push.stderr || push.stdout}`);
+  }
+
+  // 2. Create the draft PR.
+  const res = await fetch(`${GITHUB_API}/repos/${input.repo}/pulls`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'pinpoint',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      title: input.title,
+      head: input.branch,
+      base: input.baseBranch,
+      body: input.body,
+      draft: true,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `GitHub API pull request creation failed (${res.status}): ${redactSecrets(detail)}`,
+    );
+  }
+  const data = (await res.json()) as { html_url?: string; number?: number };
+  if (!data.html_url || typeof data.number !== 'number') {
+    throw new Error('GitHub API returned an unexpected pull request response');
+  }
+  return { url: data.html_url, number: data.number };
+}
+
+/**
+ * Open a draft PR by the best available auth path: the `gh` CLI when it is
+ * authenticated, otherwise a token from git's HTTPS credential helper via the
+ * REST API. Throws (mirroring the preflight message) when neither is available.
+ */
+export async function openDraftPullRequest(
+  input: DraftPrInput,
+): Promise<{ url: string; number: number }> {
+  if (await ghAuthenticated(input.gh)) {
+    return createDraftPullRequest(input);
+  }
+  const token = await gitCredentialToken(input.cwd);
+  if (token) {
+    return createDraftPullRequestViaApi(input, token);
+  }
+  throw new Error(
+    'No GitHub authentication available. Either run `gh auth login`, or make sure ' +
+      '`git push` to github.com works over HTTPS (a stored Git credential).',
+  );
 }

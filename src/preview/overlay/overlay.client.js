@@ -366,10 +366,14 @@ function mountUI(controller, config) {
       display: flex; align-items: center; gap: 10px;
       padding: 14px 14px 13px 16px;
       border-bottom: 1px solid var(--border);
+      cursor: grab; touch-action: none;
+      -webkit-user-select: none; user-select: none;
       background:
         radial-gradient(120% 140% at 0% 0%, rgba(255,90,60,.10), transparent 55%),
         linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,0));
     }
+    .panel.dragging, .panel.dragging .hd { cursor: grabbing; }
+    .fab.dragging { cursor: grabbing; }
     .cross { color: var(--signal); display: flex; }
     .cross svg { animation: cross-spin 22s linear infinite; }
     @keyframes cross-spin { to { transform: rotate(360deg); } }
@@ -510,7 +514,7 @@ function mountUI(controller, config) {
       display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px 9px 11px;
       font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: .16em; color: var(--text);
       background: var(--bg); -webkit-backdrop-filter: var(--glass); backdrop-filter: var(--glass);
-      border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--border); border-radius: 999px; cursor: pointer; touch-action: none;
       box-shadow: 0 16px 40px -12px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06);
       animation: panel-in .34s cubic-bezier(.16,1,.3,1) both; transition: transform .14s ease, border-color .14s ease;
     }
@@ -535,6 +539,53 @@ function mountUI(controller, config) {
   let markers = [];
   let message = '';
   let messageKind = '';
+  // Free-drag position { left, top } in viewport coords, or null = default corner.
+  // Persisted so the widget stays where the reviewer parked it across reloads.
+  const POS_KEY = 'pinpoint:overlay:pos';
+  let dragPos = loadPos();
+  let justDragged = false;
+
+  function loadPos() {
+    try {
+      const p = JSON.parse(localStorage.getItem(POS_KEY));
+      if (p && typeof p.left === 'number' && typeof p.top === 'number') return p;
+    } catch (e) {
+      /* ignore */
+    }
+    return null;
+  }
+  function savePos() {
+    try {
+      if (dragPos) localStorage.setItem(POS_KEY, JSON.stringify(dragPos));
+      else localStorage.removeItem(POS_KEY);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+  // Whichever element is currently the fixed-positioned box: the panel when
+  // expanded, the pill when collapsed.
+  function currentBox() {
+    return collapsed ? panel.querySelector('.fab') : panel;
+  }
+  // Reflect dragPos onto the live box (or clear inline styles to fall back to the
+  // CSS corner when unset). Re-clamps so a resized viewport can't strand it.
+  function applyPos() {
+    const box = currentBox();
+    if (!box) return;
+    if (!dragPos) {
+      box.style.left = box.style.top = box.style.right = box.style.bottom = '';
+      return;
+    }
+    const w = box.offsetWidth;
+    const h = box.offsetHeight;
+    box.style.left = clamp(dragPos.left, 6, Math.max(6, window.innerWidth - w - 6)) + 'px';
+    box.style.top = clamp(dragPos.top, 6, Math.max(6, window.innerHeight - h - 6)) + 'px';
+    box.style.right = 'auto';
+    box.style.bottom = 'auto';
+  }
 
   Array.prototype.slice.call(document.querySelectorAll('.pinpoint-marker')).forEach(function (n) {
     n.remove();
@@ -668,6 +719,60 @@ function mountUI(controller, config) {
   const panel = document.createElement('div');
   root.appendChild(panel);
 
+  // Drag-to-move. Handle = the panel header when expanded, the whole pill when
+  // collapsed. A small threshold distinguishes a drag from a click so the pill's
+  // expand-on-click and the header's minimize button still work.
+  panel.addEventListener('pointerdown', function (e) {
+    if (e.button && e.button !== 0) return;
+    const box = currentBox();
+    if (!box) return;
+    if (!collapsed) {
+      // expanded: only the header drags, and never its buttons
+      const onHeader = e.target.closest && e.target.closest('.hd');
+      if (!onHeader || e.target.closest('button')) return;
+    }
+    const rect = box.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const baseLeft = rect.left;
+    const baseTop = rect.top;
+    let moved = false;
+
+    function onMove(ev) {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+      moved = true;
+      box.classList.add('dragging');
+      const w = box.offsetWidth;
+      const h = box.offsetHeight;
+      dragPos = {
+        left: clamp(baseLeft + dx, 6, Math.max(6, window.innerWidth - w - 6)),
+        top: clamp(baseTop + dy, 6, Math.max(6, window.innerHeight - h - 6)),
+      };
+      box.style.left = dragPos.left + 'px';
+      box.style.top = dragPos.top + 'px';
+      box.style.right = 'auto';
+      box.style.bottom = 'auto';
+      ev.preventDefault();
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      box.classList.remove('dragging');
+      if (moved) {
+        savePos();
+        // Swallow the click that fires after a drag so the pill doesn't expand.
+        justDragged = true;
+        setTimeout(function () {
+          justDragged = false;
+        }, 0);
+      }
+    }
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
+  });
+
   controller.render = function () {
     const list = controller.annotations();
 
@@ -680,9 +785,11 @@ function mountUI(controller, config) {
         (list.length ? '<span class="fab-count">' + list.length + '</span>' : '') +
         '</button>';
       panel.querySelector('.fab').addEventListener('click', function () {
+        if (justDragged) return; // a drag ended here, not a real click
         collapsed = false;
         controller.render();
       });
+      applyPos();
       syncMode();
       drawPins();
       return;
@@ -705,6 +812,14 @@ function mountUI(controller, config) {
       collapsed = true;
       controller.render();
     });
+    // Double-click the header to snap back to the default corner.
+    hd.addEventListener('dblclick', function (e) {
+      if (e.target.closest('button')) return;
+      dragPos = null;
+      savePos();
+      applyPos();
+    });
+    hd.title = 'Drag to move · double-click to reset';
     panel.appendChild(hd);
 
     // Mode toggle: Browse (use the app) vs Comment (clicks annotate)
@@ -847,6 +962,7 @@ function mountUI(controller, config) {
       panel.appendChild(ft);
     }
 
+    applyPos();
     syncMode();
     drawPins();
   };
@@ -911,6 +1027,7 @@ function mountUI(controller, config) {
     }
   });
   window.addEventListener('resize', function () {
+    applyPos();
     drawPins();
     if (activeId) showFocus(controller.elementFor(activeId));
     else hideFocus();

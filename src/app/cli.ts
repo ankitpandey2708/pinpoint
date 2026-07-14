@@ -49,8 +49,8 @@ export interface ReviewServices {
   startPreview: (workspace: PreviewWorkspace, project: Project) => Promise<PreviewRuntime>;
   listen: (app: Express, host: string, port: number) => Promise<ServerHandle>;
   makeAgent: () => CodingAgent;
-  /** Preflight the GitHub CLI auth. Omitted in tests; run for repos with a remote. */
-  checkGitHubAuth?: () => Promise<void>;
+  /** Preflight GitHub auth (gh CLI or a stored HTTPS credential). Omitted in tests; run for repos with a remote. */
+  checkGitHubAuth?: (cwd: string) => Promise<void>;
   dataDir: string;
   workRoot: string;
   logsDir?: string;
@@ -110,7 +110,7 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
   // remote, the draft-PR step needs an authenticated GitHub CLI. Checking now
   // avoids running an agent only to fail at push time.
   if (info.githubRepo && services.checkGitHubAuth) {
-    await services.checkGitHubAuth();
+    await services.checkGitHubAuth(info.root);
   }
 
   const host = '127.0.0.1';
@@ -242,7 +242,7 @@ export function realServices(dataRoot: string): ReviewServices {
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
     listen: httpListen,
     makeAgent: () => new ClaudeAgent(),
-    checkGitHubAuth: () => checkGitHubAuth(),
+    checkGitHubAuth: (cwd) => checkGitHubAuth(cwd),
     dataDir: join(dataRoot, 'data'),
     workRoot: join(tmpdir(), 'pp', runtimeKey),
     logsDir: join(dataRoot, 'data', 'logs'),

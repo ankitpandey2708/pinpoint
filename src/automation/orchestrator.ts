@@ -12,7 +12,7 @@ import {
 } from './git/repo';
 import { verifyRepository, type VerifyOptions } from './git/verify';
 import { assertSafeChangedFiles } from './git/change-policy';
-import { createDraftPullRequest, type DraftPrInput } from './pull-request';
+import { openDraftPullRequest, type DraftPrInput } from './pull-request';
 import type { AgentResult, CodingAgent } from './types';
 import type { Repositories } from '../feedback/storage/repositories';
 import type {
@@ -53,7 +53,7 @@ export const realRepoAdapter: RepoAdapter = {
 
 export const realVerifyAdapter: VerifyAdapter = { verifyRepository };
 
-export const realGithubAdapter: GithubAdapter = { createDraftPullRequest };
+export const realGithubAdapter: GithubAdapter = { createDraftPullRequest: openDraftPullRequest };
 
 export interface OrchestratorDeps {
   repositories: Repositories;

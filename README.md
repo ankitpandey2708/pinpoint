@@ -16,7 +16,9 @@ pull request.
 
 - Node.js 20+ (24 LTS recommended)
 - Git on your PATH
-- GitHub CLI (`gh`) authenticated — for PR creation
+- GitHub auth for PR creation — either the GitHub CLI (`gh auth login`), or a
+  stored HTTPS Git credential for github.com (e.g. Git Credential Manager), which
+  Pin Point uses to open the PR via the REST API when `gh` isn't available
 - Claude Code CLI (`claude`) authenticated — the default agent
 - A clean local Git repo with a GitHub remote
 

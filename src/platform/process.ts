@@ -14,6 +14,13 @@ export interface RunProcessOptions {
   onStdout?: (chunk: string) => void;
   /** Streamed sanitized stderr chunks (already redacted). */
   onStderr?: (chunk: string) => void;
+  /**
+   * Skip secret redaction on captured/streamed output. ONLY for reading a
+   * credential we immediately consume and never log (e.g. `git credential fill`,
+   * whose `password=<token>` line would otherwise be scrubbed). Callers MUST NOT
+   * log or persist the raw result.
+   */
+  raw?: boolean;
 }
 
 export interface ProcessResult {
@@ -285,6 +292,7 @@ export function runProcess(
     input,
     onStdout,
     onStderr,
+    raw = false,
   } = options;
 
   return new Promise<ProcessResult>((resolve) => {
@@ -319,10 +327,10 @@ export function runProcess(
       }
       if (stream === 'out') {
         stdout += piece;
-        if (onStdout) onStdout(redactSecrets(piece));
+        if (onStdout) onStdout(raw ? piece : redactSecrets(piece));
       } else {
         stderr += piece;
-        if (onStderr) onStderr(redactSecrets(piece));
+        if (onStderr) onStderr(raw ? piece : redactSecrets(piece));
       }
     };
 
@@ -371,8 +379,8 @@ export function runProcess(
         args,
         code,
         signal: sig,
-        stdout: redactSecrets(stdout),
-        stderr: redactSecrets(stderr),
+        stdout: raw ? stdout : redactSecrets(stdout),
+        stderr: raw ? stderr : redactSecrets(stderr),
         timedOut,
         aborted,
         truncated,
