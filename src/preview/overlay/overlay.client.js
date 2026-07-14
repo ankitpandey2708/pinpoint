@@ -529,6 +529,9 @@ function mountUI(controller, config) {
   let activeId = null;
   let collapsed = false;
   let commentMode = true; // default: land ready to annotate; toggle/Esc drops to Browse
+  // Gate mutations of the framework-owned <html> until the host app has hydrated
+  // (see markHydrated) so the overlay never trips a React hydration mismatch.
+  let hydrated = false;
   let markers = [];
   let message = '';
   let messageKind = '';
@@ -555,8 +558,14 @@ function mountUI(controller, config) {
   function syncMode() {
     const on = isCommenting();
     frameEl.style.display = on ? 'block' : 'none';
-    const rootEl = document.documentElement;
-    if (rootEl && rootEl.classList) rootEl.classList.toggle('pinpoint-commenting', on);
+    // The commenting cursor is a class on <html>, which the host framework owns
+    // and hydrates. Toggling it before hydration completes trips React's
+    // hydration mismatch check, so hold off until the app has hydrated; the
+    // border overlay above is Pinpoint-owned and safe to toggle immediately.
+    if (hydrated) {
+      const rootEl = document.documentElement;
+      if (rootEl && rootEl.classList) rootEl.classList.toggle('pinpoint-commenting', on);
+    }
     if (!on) hideFocus();
   }
 
@@ -843,6 +852,19 @@ function mountUI(controller, config) {
   };
 
   controller.render();
+
+  // Apply any deferred <html> mutation once the host app has hydrated. The first
+  // user interaction is always post-hydration (and the crosshair cursor only
+  // matters once the pointer is over the page), so it is a safe, timing-free
+  // signal — no guessing when the framework finished hydrating.
+  function markHydrated() {
+    if (hydrated) return;
+    hydrated = true;
+    syncMode();
+  }
+  ['pointermove', 'pointerdown', 'keydown'].forEach(function (evt) {
+    window.addEventListener(evt, markHydrated, { once: true, capture: true });
+  });
 
   document.addEventListener(
     'click',

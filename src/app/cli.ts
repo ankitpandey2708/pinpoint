@@ -327,14 +327,13 @@ export function buildProgram(
   program
     .command('review', { isDefault: true })
     .description('Start an instrumented review preview for a repository')
-    .argument('<repo>', 'path to the repository to review')
+    .argument('[repo]', 'path to the repository to review (defaults to current directory)')
     .action(async (repo?: string) => {
-      // Require an explicit repo. Without one there is nothing to preview, so we
-      // never fall back to the current directory and build a workspace for it.
-      if (!repo || !repo.trim()) {
-        throw new Error('a repository path is required, e.g. `pinpoint <path-to-repo>`');
-      }
-      await onReview({ repo });
+      // Default to the current directory: pinpoint is normally run from inside
+      // the repo being reviewed, so requiring an explicit path is redundant.
+      // A random cwd is harmless — inspectRepository throws "Not a Git
+      // repository" before any workspace is built.
+      await onReview({ repo: repo?.trim() || process.cwd() });
     });
 
   program

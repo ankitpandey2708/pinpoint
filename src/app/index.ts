@@ -7,7 +7,7 @@ import { killAllSessions } from '../preview/cleanup';
 
 /* eslint-disable no-console */
 
-/** CLI entry point: `pinpoint <repo>` (start a review) or `pinpoint kill`. */
+/** CLI entry point: `pinpoint [repo]` (review a repo, defaults to cwd) or `pinpoint kill`. */
 async function main(): Promise<void> {
   let running: RunningReview | undefined;
   let tunnel: Tunnel | undefined;
