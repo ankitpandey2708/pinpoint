@@ -14,3 +14,6 @@ data/logs/
 # OS / editor noise
 .DS_Store
 Thumbs.db
+
+# Generated overlay bundle (built by scripts/build-overlay.mjs)
+src/preview/overlay/overlay.bundle.js

@@ -5,6 +5,6 @@ export const PINPOINT_BASE = '/__pinpoint__';
 
 export const OVERLAY_URLS: OverlayUrls = {
   css: `${PINPOINT_BASE}/overlay.css`,
-  js: `${PINPOINT_BASE}/overlay.js`,
+  js: `${PINPOINT_BASE}/overlay.bundle.js`,
 };
 

@@ -20,7 +20,9 @@ function assetDir(relativePath: string, marker: string): string {
 }
 
 function overlayDir(): string {
-  return assetDir(join('preview', 'overlay'), 'overlay.js');
+  // Marker is overlay.css (a stable committed file); overlay.bundle.js is a
+  // generated artifact that may not exist until the build step has run.
+  return assetDir(join('preview', 'overlay'), 'overlay.css');
 }
 
 function dashboardDir(): string {

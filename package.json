@@ -7,8 +7,9 @@
     "pinpoint": "dist/app/index.js"
   },
   "scripts": {
-    "dev": "tsx src/app/index.ts",
-    "build": "tsc",
+    "build:overlay": "node scripts/build-overlay.mjs",
+    "dev": "node scripts/build-overlay.mjs && tsx src/app/index.ts",
+    "build": "node scripts/build-overlay.mjs && tsc",
     "start": "node dist/app/index.js",
     "typecheck": "tsc --noEmit"
   },

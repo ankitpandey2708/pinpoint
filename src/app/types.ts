@@ -58,9 +58,18 @@ export interface Project {
   createdAt: string;
 }
 
-/** Maps an instrumented element id back to a source location. */
+/** A resolved source frame reported by the client (via element-source). */
+export interface ClientSourceFrame {
+  filePath: string | null;
+  lineNumber: number | null;
+  columnNumber: number | null;
+  componentName: string | null;
+}
+
+/** A source location for a selected element (server-validated). */
 export interface SourceMapping {
-  elementId: string;
+  /** Legacy instrumented-element id (static HTML path only). */
+  elementId?: string;
   sourceFile?: string;
   component?: string;
   line?: number;
@@ -70,32 +79,41 @@ export interface SourceMapping {
 }
 
 /**
- * What the client overlay captures per selected element. Contains only
- * presentation context and the reviewer's comment; never source/repo fields.
+ * What the client overlay captures per selected element. The framework path
+ * carries an element-source-resolved `source`/`stack`; the static path carries a
+ * legacy `elementId`. Both carry presentation context and the comment — never
+ * repo/credential fields.
  */
 export interface ClientAnnotation {
-  elementId: string;
   route: string;
-  selector: string;
   tag: string;
+  componentName: string | null;
+  source: ClientSourceFrame | null;
+  stack: ClientSourceFrame[];
+  selector: string;
+  outerHtml: string;
   classes: string[];
   visibleText: string;
   nearbyText: string;
   comment: string;
+  /** Legacy instrumented id, present only for static HTML previews. */
+  elementId?: string;
 }
 
 /** A stored annotation: client context plus server-resolved source mapping. */
 export interface Annotation {
   id: string;
   index: number; // 1-based pin number
-  elementId: string;
   route: string;
-  selector: string;
   tag: string;
+  componentName?: string | null;
+  selector: string;
+  outerHtml?: string;
   classes: string[];
   visibleText: string;
   nearbyText: string;
   comment: string;
+  stack?: ClientSourceFrame[];
   mapping: SourceMapping;
 }
 

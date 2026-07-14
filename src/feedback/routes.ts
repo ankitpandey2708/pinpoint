@@ -4,7 +4,15 @@ import { entityId } from '../platform/ids';
 import { redactSecrets } from '../platform/process';
 import type { Repositories } from './storage/repositories';
 import type { PreviewRegistry } from '../preview/registry';
-import type { Annotation, ClientAnnotation, SubmittedReview, AgentJob } from '../app/types';
+import type {
+  Annotation,
+  ClientAnnotation,
+  ClientSourceFrame,
+  SourceMapping,
+  SubmittedReview,
+  AgentJob,
+} from '../app/types';
+import { loadTrackedFiles, toTrackedPath } from './source-path';
 
 const MAX_REVIEWER = 120;
 const MAX_ANNOTATIONS = 300;
@@ -43,23 +51,48 @@ function str(value: unknown, max: number): string {
   return typeof value === 'string' ? value.slice(0, max) : '';
 }
 
+function num(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+/** Parse one client-reported source frame (from element-source). */
+function parseFrame(raw: unknown): ClientSourceFrame | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const filePath = typeof r.filePath === 'string' ? r.filePath.slice(0, 1024) : null;
+  return {
+    filePath,
+    lineNumber: num(r.lineNumber),
+    columnNumber: num(r.columnNumber),
+    componentName: typeof r.componentName === 'string' ? r.componentName.slice(0, 128) : null,
+  };
+}
+
 function extractClientAnnotation(raw: unknown): ClientAnnotation | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
   const r = raw as Record<string, unknown>;
-  const elementId = typeof r.elementId === 'string' ? r.elementId : '';
-  const comment = typeof r.comment === 'string' ? r.comment : '';
-  if (!elementId) return undefined;
+  const source = parseFrame(r.source);
+  const elementId = typeof r.elementId === 'string' ? r.elementId : undefined;
+  const rawStack = Array.isArray(r.stack) ? r.stack : [];
+  const stack = rawStack
+    .map(parseFrame)
+    .filter((f): f is ClientSourceFrame => f !== null && f.filePath !== null)
+    .slice(0, 20);
   return {
-    elementId,
     route: str(r.route, 512),
-    selector: str(r.selector, 1024),
     tag: str(r.tag, 64),
+    componentName: typeof r.componentName === 'string' ? r.componentName.slice(0, 128) : null,
+    source: source && source.filePath ? source : null,
+    stack,
+    selector: str(r.selector, 1024),
+    outerHtml: str(r.outerHtml, 1024),
     classes: Array.isArray(r.classes)
       ? r.classes.filter((c): c is string => typeof c === 'string').slice(0, 50).map((c) => c.slice(0, 64))
       : [],
     visibleText: str(r.visibleText, MAX_TEXT),
     nearbyText: str(r.nearbyText, MAX_TEXT),
-    comment,
+    comment: typeof r.comment === 'string' ? r.comment : '',
+    elementId,
   };
 }
 
@@ -97,6 +130,17 @@ async function submitReview(deps: ApiDeps, req: Request, res: Response): Promise
   }
 
   const route = str(body.route, 512) || '/';
+
+  // Framework annotations carry an element-source-resolved source path. Validate
+  // every such path against the repo's tracked files — this is both the
+  // correctness fix (normalizing mixed absolute/relative paths) and the security
+  // boundary against an untrusted client injecting an arbitrary path.
+  const anyResolvedSource = rawAnnotations.some((raw) => {
+    const s = raw && typeof raw === 'object' ? (raw as Record<string, unknown>).source : undefined;
+    return Boolean(s && typeof s === 'object' && typeof (s as Record<string, unknown>).filePath === 'string');
+  });
+  const tracked = anyResolvedSource ? await loadTrackedFiles(project.repoPath) : new Set<string>();
+
   const annotations: Annotation[] = [];
   let index = 0;
 
@@ -111,24 +155,47 @@ async function submitReview(deps: ApiDeps, req: Request, res: Response): Promise
       res.status(400).json({ error: 'each annotation needs a non-empty comment' });
       return;
     }
-    const mapping = session.mappingById.get(client.elementId);
-    if (!mapping) {
-      res.status(400).json({ error: `unknown element: ${client.elementId}` });
-      return;
+
+    let mapping: SourceMapping;
+    if (client.source && client.source.filePath) {
+      // Framework path: anchor the resolved file to a tracked repo path.
+      const sourceFile = toTrackedPath(client.source.filePath, tracked);
+      mapping = {
+        sourceFile: sourceFile ?? undefined,
+        component: client.componentName ?? client.source.componentName ?? undefined,
+        line: client.source.lineNumber ?? undefined,
+        column: client.source.columnNumber ?? undefined,
+        tag: client.tag || 'div',
+        confidence: sourceFile ? 'direct' : 'unresolved',
+      };
+    } else if (client.elementId) {
+      // Static path: resolve the legacy instrumented id from the private manifest.
+      const m = session.mappingById.get(client.elementId);
+      if (!m) {
+        res.status(400).json({ error: `unknown element: ${client.elementId}` });
+        return;
+      }
+      mapping = { ...m };
+    } else {
+      // No locator resolved (e.g. a non-framework element with no source).
+      mapping = { tag: client.tag || 'div', confidence: 'unresolved' };
     }
+
     index += 1;
     annotations.push({
       id: entityId('ann'),
       index,
-      elementId: client.elementId,
       route: client.route || route,
-      selector: client.selector,
       tag: client.tag || mapping.tag,
+      componentName: client.componentName,
+      selector: client.selector,
+      outerHtml: client.outerHtml,
       classes: client.classes,
       visibleText: client.visibleText,
       nearbyText: client.nearbyText,
+      stack: client.stack,
       comment,
-      mapping: { ...mapping }, // server-resolved; never trust client source fields
+      mapping,
     });
   }
 
