@@ -1,4 +1,4 @@
-toss/
+.env
 .vercel
 
 # Dependencies / build output
