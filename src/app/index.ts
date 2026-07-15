@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { buildProgram, startReview, realConfig, type RunningReview } from './cli';
+import { buildProgram, startReview, realConfig, resolveRepoPath, type RunningReview } from './cli';
 import { startTunnel, type Tunnel } from '../platform/tunnel';
 import { killAllSessions } from '../preview/cleanup';
 
@@ -12,11 +12,14 @@ async function main(): Promise<void> {
   let running: RunningReview | undefined;
   let tunnel: Tunnel | undefined;
 
-  const program = buildProgram(async (opts) => {
-    // Pinpoint's own data (projects db, logs) lives in one stable per-user dir,
-    // not the working directory — so a globally-installed `pinpoint` run from any
-    // folder shares one store instead of scattering `data/` wherever it is invoked.
-    running = await startReview(opts, realConfig(join(homedir(), '.pinpoint')));
+  const program = buildProgram(async (repoArg) => {
+    // Resolve ambient state here at the entry point: the target repo (arg or the
+    // current directory) and the per-user data dir. Pinpoint's own data (projects
+    // db, logs) lives in one stable per-user dir, not the working directory — so a
+    // globally-installed `pinpoint` run from any folder shares one store instead
+    // of scattering `data/` wherever it is invoked.
+    const repo = resolveRepoPath(repoArg, process.cwd());
+    running = await startReview({ repo }, realConfig(join(homedir(), '.pinpoint')));
     console.log(`\n  Pin Point is ready.\n`);
     console.log(`  Review link (local):    ${running.reviewUrl}`);
     console.log(`  Developer dashboard:    ${running.dashboardUrl}`);

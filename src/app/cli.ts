@@ -21,6 +21,17 @@ export interface ReviewOptions {
 }
 
 /**
+ * Resolve the target repository from the optional CLI path argument, falling
+ * back to the current directory. This is the whole of "the three ways to run
+ * Pinpoint" (`pinpoint <path>`, `npx … <path>`, or bare `pinpoint`): one rule,
+ * with `cwd` passed in explicitly rather than read from ambient global state, so
+ * it is pure and testable and the ambient read happens only at the entry point.
+ */
+export function resolveRepoPath(repoArg: string | undefined, cwd: string): string {
+  return repoArg?.trim() || cwd;
+}
+
+/**
  * Preferred loopback port for the pinpoint server. The first run gets 7777, so
  * `http://localhost:7777/…` review and dashboard URLs stay stable for the common
  * single-session case. When 7777 is taken — a second review in another repo, or
@@ -297,13 +308,14 @@ function listenWithFallback(
 }
 
 /**
- * Build the Commander program. Actions are injected by the caller so this stays
- * IO-free and testable. `review <repo>` is the default command (so `pinpoint
- * <repo>` still works), and `kill` is a sibling subcommand — both reachable
- * through the published `bin`, unlike an `npm run` script.
+ * Build the Commander program. Actions are injected by the caller and the
+ * caller resolves ambient state (cwd), so this stays IO-free and testable. The
+ * raw optional `[repo]` argument is forwarded verbatim — the default-to-cwd rule
+ * lives in `resolveRepoPath` at the entry point. `review <repo>` is the default
+ * command (so `pinpoint <repo>` still works), and `kill` is a sibling subcommand.
  */
 export function buildProgram(
-  onReview: (opts: ReviewOptions) => Promise<void>,
+  onReview: (repoArg: string | undefined) => Promise<void>,
   onKill: () => Promise<void>,
 ): Command {
   const program = new Command();
@@ -314,11 +326,7 @@ export function buildProgram(
     .description('Start an instrumented review preview for a repository')
     .argument('[repo]', 'path to the repository to review (defaults to current directory)')
     .action(async (repo?: string) => {
-      // Default to the current directory: pinpoint is normally run from inside
-      // the repo being reviewed, so requiring an explicit path is redundant.
-      // A random cwd is harmless — inspectRepository throws "Not a Git
-      // repository" before any workspace is built.
-      await onReview({ repo: repo?.trim() || process.cwd() });
+      await onReview(repo);
     });
 
   program
