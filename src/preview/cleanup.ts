@@ -5,7 +5,7 @@ import { killProcessesMatching } from '../platform/process';
 
 /**
  * Temp roots Pinpoint has used for per-session workspaces, across every repo and
- * dataRoot on this machine. `pp` is the current layout (see realServices in
+ * dataRoot on this machine. `pp` is the current layout (see realConfig in
  * ../app/cli); older builds used `pinpoint-runtime`.
  */
 const WORKSPACE_ROOTS = [join(tmpdir(), 'pp'), join(tmpdir(), 'pinpoint-runtime')];

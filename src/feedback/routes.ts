@@ -19,7 +19,10 @@ const MAX_ANNOTATIONS = 300;
 const MAX_COMMENT = 4000;
 const MAX_TEXT = 2000;
 
-/** Minimal orchestrator surface the API depends on (Task 11 implements it). */
+/**
+ * Minimal orchestrator surface the API depends on, so the feedback layer never
+ * imports the concrete automation `Orchestrator` (and its git/agent deps).
+ */
 export interface OrchestratorLike {
   startJobForReview(reviewId: string): Promise<AgentJob>;
   getJob(jobId: string): Promise<AgentJob | undefined>;
@@ -30,7 +33,7 @@ export interface ApiDeps {
   previews: PreviewRegistry;
   /** Token required for developer dashboard mutation routes. */
   devToken?: string;
-  /** Present when the CLI wires a live orchestrator; absent in submission-only tests. */
+  /** The live job orchestrator wired by the CLI; absent leaves job routes disabled. */
   orchestrator?: OrchestratorLike;
 }
 

@@ -8,19 +8,13 @@ import { createApp } from '../platform/server';
 import { PreviewRegistry, type PreviewSession } from '../preview/registry';
 import { createRepositories, type Repositories } from '../feedback/storage/repositories';
 import { entityId } from '../platform/ids';
-import { createPreviewWorkspace, type PreviewWorkspace, type CreatePreviewOptions } from '../preview/workspace';
+import { createPreviewWorkspace } from '../preview/workspace';
 import { startPreview, type PreviewRuntime } from '../preview/runtime';
 import { inspectRepository } from '../preview/repository';
 import { ClaudeAgent } from '../automation/agent';
 import { checkGitHubAuth } from '../automation/pull-request';
-import {
-  Orchestrator,
-  realRepoAdapter,
-  realVerifyAdapter,
-  realGithubAdapter,
-} from '../automation/orchestrator';
-import type { CodingAgent } from '../automation/types';
-import type { Project, RepositoryInfo } from './types';
+import { Orchestrator } from '../automation/orchestrator';
+import type { Project } from './types';
 
 export interface ReviewOptions {
   repo: string;
@@ -41,16 +35,8 @@ export interface ServerHandle {
   close(): Promise<void>;
 }
 
-/** Injectable seams so the composition is testable without real IO. */
-export interface ReviewServices {
-  exists?: (path: string) => boolean;
-  inspect: (path: string) => Promise<RepositoryInfo>;
-  createWorkspace: (project: Project, opts: CreatePreviewOptions) => Promise<PreviewWorkspace>;
-  startPreview: (workspace: PreviewWorkspace, project: Project) => Promise<PreviewRuntime>;
-  listen: (app: Express, host: string, port: number) => Promise<ServerHandle>;
-  makeAgent: () => CodingAgent;
-  /** Preflight GitHub auth (gh CLI or a stored HTTPS credential). Omitted in tests; run for repos with a remote. */
-  checkGitHubAuth?: (cwd: string) => Promise<void>;
+/** Filesystem locations for a review session's persisted state and workspaces. */
+export interface ReviewConfig {
   dataDir: string;
   workRoot: string;
   logsDir?: string;
@@ -85,9 +71,8 @@ function samePath(a: string, b: string): boolean {
  * create an instrumented preview, wire the orchestrator, and start the server.
  * All external effects go through `services` so the flow is unit-testable.
  */
-export async function startReview(opts: ReviewOptions, services: ReviewServices): Promise<RunningReview> {
-  const exists = services.exists ?? existsSync;
-  if (!exists(opts.repo)) {
+export async function startReview(opts: ReviewOptions, config: ReviewConfig): Promise<RunningReview> {
+  if (!existsSync(opts.repo)) {
     throw new Error(`repository path does not exist: ${opts.repo}`);
   }
 
@@ -103,21 +88,21 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
     lastMark = now;
   };
 
-  const info = await services.inspect(opts.repo);
+  const info = await inspectRepository(opts.repo);
   lap('inspect');
 
   // Fail fast if we can't ultimately open a PR: when the repo has a GitHub
   // remote, the draft-PR step needs an authenticated GitHub CLI. Checking now
   // avoids running an agent only to fail at push time.
-  if (info.githubRepo && services.checkGitHubAuth) {
-    await services.checkGitHubAuth(info.root);
+  if (info.githubRepo) {
+    await checkGitHubAuth(info.root);
   }
 
   const host = '127.0.0.1';
   // Fixed port for stable review URLs; startup fails if it is already in use.
   const port = DEFAULT_PORT;
 
-  const repositories = await createRepositories(services.dataDir);
+  const repositories = await createRepositories(config.dataDir);
 
   // A project's identity is the repository it points at (`repoPath`, the
   // canonical git root). Re-running against the same working copy is the SAME
@@ -148,13 +133,13 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
         createdAt: new Date().toISOString(),
       });
 
-  const workspace = await services.createWorkspace(project, { workRoot: services.workRoot });
+  const workspace = await createPreviewWorkspace(project, { workRoot: config.workRoot });
   lap('workspace');
   // If the dev server fails to boot, tear the workspace down before rethrowing so
   // a failed start never leaves an orphaned git worktree registered on the repo.
   let runtime: PreviewRuntime;
   try {
-    runtime = await services.startPreview(workspace, project);
+    runtime = await startPreview(workspace, project);
   } catch (err) {
     await workspace.cleanup().catch(() => undefined);
     throw err;
@@ -177,11 +162,8 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
   const devToken = randomUUID();
   const orchestrator = new Orchestrator({
     repositories,
-    agent: services.makeAgent(),
-    repo: realRepoAdapter,
-    verifier: realVerifyAdapter,
-    github: realGithubAdapter,
-    logsDir: services.logsDir,
+    agent: new ClaudeAgent(),
+    logsDir: config.logsDir,
     // Surface job progress in the server terminal, including elapsed time (from
     // queued) at each stage and the total to the draft PR link.
     onStatus: (job) => {
@@ -202,7 +184,7 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
   await orchestrator.recoverInterrupted();
 
   const app = createApp({ repositories, previews, devToken, orchestrator });
-  const server = await services.listen(app, host, port);
+  const server = await httpListen(app, host, port);
   lap('server');
   project.port = server.port;
   await repositories.projects.update(project.id, { port: server.port });
@@ -228,21 +210,14 @@ export async function startReview(opts: ReviewOptions, services: ReviewServices)
   return { project, reviewUrl, dashboardUrl, devToken, repositories, orchestrator, close };
 }
 
-/** Real service wiring used by the CLI entry point. */
-export function realServices(dataRoot: string): ReviewServices {
+/** Real filesystem config used by the CLI entry point. */
+export function realConfig(dataRoot: string): ReviewConfig {
   // Keep this prefix short: the workspace nests a full node_modules tree, and on
   // Windows a long temp prefix pushes deep paths past the 260-char MAX_PATH
   // limit. `pp/<8-hex>` instead of `pinpoint-runtime/<12-hex>/previews` reclaims
   // ~25 characters of headroom.
   const runtimeKey = createHash('sha256').update(resolve(dataRoot)).digest('hex').slice(0, 8);
   return {
-    inspect: inspectRepository,
-    createWorkspace: createPreviewWorkspace,
-    startPreview: (ws, project) => startPreview(ws, project),
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    listen: httpListen,
-    makeAgent: () => new ClaudeAgent(),
-    checkGitHubAuth: (cwd) => checkGitHubAuth(cwd),
     dataDir: join(dataRoot, 'data'),
     workRoot: join(tmpdir(), 'pp', runtimeKey),
     logsDir: join(dataRoot, 'data', 'logs'),

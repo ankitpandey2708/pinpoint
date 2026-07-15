@@ -73,13 +73,3 @@ export async function commitAll(
 export async function restoreBranch(repoRoot: string, branch: string): Promise<void> {
   await runGitOrThrow(repoRoot, ['checkout', '-f', branch]);
 }
-
-/**
- * Discard all tracked changes in the working tree back to HEAD. On the review
- * branch (created from the base commit, before any commit) this yields a clean
- * baseline tree. The agent has no shell access, so its edits are all tracked and
- * fully reverted by this.
- */
-export async function resetHard(repoRoot: string): Promise<void> {
-  await runGitOrThrow(repoRoot, ['reset', '--hard']);
-}

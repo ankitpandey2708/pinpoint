@@ -11,7 +11,7 @@ import type {
 export interface ClaudeAgentOptions {
   /**
    * The base command used to launch Claude Code. Defaults to `['claude']` so the
-   * installed CLI on PATH is used. Tests inject `[node, fakeScript]`.
+   * installed CLI on PATH is used; override to point at a non-PATH binary.
    */
   command?: string[];
   /**

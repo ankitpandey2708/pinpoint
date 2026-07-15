@@ -337,19 +337,11 @@ export function runProcess(
     child.stdout?.on('data', (d: Buffer) => append(d.toString('utf8'), 'out'));
     child.stderr?.on('data', (d: Buffer) => append(d.toString('utf8'), 'err'));
 
+    // Reuse the single tree-kill primitive (taskkill /T on Windows, SIGKILL
+    // otherwise) instead of a second inline copy. Fire-and-forget: the child's
+    // `close` handler is what settles this promise.
     const killTree = () => {
-      if (child.pid === undefined) return;
-      if (process.platform === 'win32') {
-        try {
-          spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
-            windowsHide: true,
-          });
-        } catch {
-          child.kill('SIGKILL');
-        }
-      } else {
-        child.kill('SIGKILL');
-      }
+      void killProcessTree(child.pid, child);
     };
 
     let timer: NodeJS.Timeout | undefined;

@@ -21,10 +21,6 @@ export interface DraftPrInput {
   remote?: string;
   /** owner/repo; passed to gh via --repo when present. */
   repo?: string;
-  /** Injectable base command for git (default ['git']). */
-  git?: string[];
-  /** Injectable base command for gh (default ['gh']). */
-  gh?: string[];
   env?: NodeJS.ProcessEnv;
 }
 
@@ -33,8 +29,8 @@ async function run(base: string[], args: string[], cwd: string, env?: NodeJS.Pro
 }
 
 /** True when the GitHub CLI is installed and authenticated. */
-export async function ghAuthenticated(gh: string[] = ['gh']): Promise<boolean> {
-  const res = await runProcess(gh[0], [...gh.slice(1), 'auth', 'status'], { timeoutMs: 15_000 });
+export async function ghAuthenticated(): Promise<boolean> {
+  const res = await runProcess('gh', ['auth', 'status'], { timeoutMs: 15_000 });
   return res.code === 0;
 }
 
@@ -53,9 +49,8 @@ export async function ghAuthenticated(gh: string[] = ['gh']): Promise<boolean> {
 export async function gitCredentialToken(
   cwd?: string,
   host: string = GITHUB_HOST,
-  git: string[] = ['git'],
 ): Promise<string | undefined> {
-  const res = await runProcess(git[0], [...git.slice(1), 'credential', 'fill'], {
+  const res = await runProcess('git', ['credential', 'fill'], {
     cwd,
     input: `protocol=https\nhost=${host}\n\n`,
     timeoutMs: 15_000,
@@ -73,8 +68,8 @@ export async function gitCredentialToken(
  * authenticated OR git has a usable HTTPS credential for github.com. Runs from
  * `cwd` so repo-scoped credential config is respected.
  */
-export async function checkGitHubAuth(cwd?: string, gh: string[] = ['gh']): Promise<void> {
-  if (await ghAuthenticated(gh)) return;
+export async function checkGitHubAuth(cwd?: string): Promise<void> {
+  if (await ghAuthenticated()) return;
   if (await gitCredentialToken(cwd)) return;
   throw new Error(
     'No GitHub authentication available. Either run `gh auth login`, or make sure ' +
@@ -95,8 +90,8 @@ function parsePrUrl(output: string): { url: string; number: number } | undefined
  * git or gh are propagated so the orchestrator marks the job failed.
  */
 export async function createDraftPullRequest(input: DraftPrInput): Promise<{ url: string; number: number }> {
-  const gitBase = input.git ?? ['git'];
-  const ghBase = input.gh ?? ['gh'];
+  const gitBase = ['git'];
+  const ghBase = ['gh'];
   const remote = input.remote ?? 'origin';
 
   // 1. Push the branch (upstream tracking, never force).
@@ -150,7 +145,7 @@ export async function createDraftPullRequestViaApi(
   input: DraftPrInput,
   token: string,
 ): Promise<{ url: string; number: number }> {
-  const gitBase = input.git ?? ['git'];
+  const gitBase = ['git'];
   const remote = input.remote ?? 'origin';
   if (!input.repo) {
     throw new Error('cannot open a pull request via the API without an owner/repo');
@@ -201,7 +196,7 @@ export async function createDraftPullRequestViaApi(
 export async function openDraftPullRequest(
   input: DraftPrInput,
 ): Promise<{ url: string; number: number }> {
-  if (await ghAuthenticated(input.gh)) {
+  if (await ghAuthenticated()) {
     return createDraftPullRequest(input);
   }
   const token = await gitCredentialToken(input.cwd);

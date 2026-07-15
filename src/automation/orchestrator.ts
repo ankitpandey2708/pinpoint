@@ -8,11 +8,10 @@ import {
   changedFiles,
   commitAll,
   restoreBranch,
-  resetHard,
 } from './git/repo';
-import { verifyRepository, type VerifyOptions } from './git/verify';
+import { verifyRepository } from './git/verify';
 import { assertSafeChangedFiles } from './git/change-policy';
-import { openDraftPullRequest, type DraftPrInput } from './pull-request';
+import { openDraftPullRequest } from './pull-request';
 import type { AgentResult, CodingAgent } from './types';
 import type { Repositories } from '../feedback/storage/repositories';
 import type {
@@ -24,43 +23,9 @@ import type {
   VerificationResult,
 } from '../app/types';
 
-/** Adapters over the git/verify/github modules, injectable for tests. */
-export interface RepoAdapter {
-  generateBranchName(seed: string): string;
-  createReviewBranch(repoRoot: string, branch: string, baseCommit: string): Promise<void>;
-  changedFiles(repoRoot: string): Promise<string[]>;
-  commitAll(repoRoot: string, message: string): Promise<{ committed: boolean; sha?: string }>;
-  restoreBranch(repoRoot: string, branch: string): Promise<void>;
-  resetHard(repoRoot: string): Promise<void>;
-}
-
-export interface VerifyAdapter {
-  verifyRepository(info: RepositoryInfo, cwd: string, opts?: VerifyOptions): Promise<VerificationResult>;
-}
-
-export interface GithubAdapter {
-  createDraftPullRequest(input: DraftPrInput): Promise<{ url: string; number: number }>;
-}
-
-export const realRepoAdapter: RepoAdapter = {
-  generateBranchName,
-  createReviewBranch,
-  changedFiles,
-  commitAll,
-  restoreBranch,
-  resetHard,
-};
-
-export const realVerifyAdapter: VerifyAdapter = { verifyRepository };
-
-export const realGithubAdapter: GithubAdapter = { createDraftPullRequest: openDraftPullRequest };
-
 export interface OrchestratorDeps {
   repositories: Repositories;
   agent: CodingAgent;
-  repo: RepoAdapter;
-  verifier: VerifyAdapter;
-  github: GithubAdapter;
   /** Directory for sanitized per-job agent logs. */
   logsDir?: string;
   /** Called on every persisted status change (including the initial queue). */
@@ -259,13 +224,13 @@ export class Orchestrator {
   private async runPipeline(jobId: string, review: SubmittedReview, project: Project): Promise<void> {
     // 1. Create the generated branch directly in the repository (no worktree).
     await this.setStatus(jobId, 'preparing');
-    const branch = this.deps.repo.generateBranchName(review.id);
+    const branch = generateBranchName(review.id);
 
     // Everything after the branch may be created runs inside the try so the
     // finally always returns the checkout to the base branch — even if branch
     // creation or the immediately-following persistence fails.
     try {
-      await this.deps.repo.createReviewBranch(project.repoPath, branch, review.baseCommit);
+      await createReviewBranch(project.repoPath, branch, review.baseCommit);
       await this.deps.repositories.jobs.update(jobId, {
         branch,
         updatedAt: new Date().toISOString(),
@@ -290,7 +255,7 @@ export class Orchestrator {
       }
 
       // 3. Require real changes before doing any further work.
-      const changed = await this.deps.repo.changedFiles(project.repoPath);
+      const changed = await changedFiles(project.repoPath);
       if (changed.length === 0) {
         throw new JobError('the agent made no changes; no pull request was created');
       }
@@ -302,26 +267,17 @@ export class Orchestrator {
 
       // 4. Verify BEFORE any commit/push. Failed verification blocks the PR.
       await this.setStatus(jobId, 'verifying');
-      const verification = await this.deps.verifier.verifyRepository(repositoryInfo, project.repoPath);
+      const verification = await verifyRepository(repositoryInfo, project.repoPath);
       await this.deps.repositories.jobs.update(jobId, {
         verification,
         updatedAt: new Date().toISOString(),
       });
       if (!verification.ok) {
-        // Only now spend time on a baseline — reset the tree to the clean base
-        // commit (the agent has no shell, so its edits are all reverted) and run
-        // the gates there to attribute the failure. No PR is created either way.
-        await this.deps.repo.resetHard(project.repoPath);
-        const baseline = await this.deps.verifier.verifyRepository(repositoryInfo, project.repoPath);
-        throw new JobError(
-          baseline.ok
-            ? 'verification failed on the change; no pull request was created'
-            : 'the repository was already failing at the base commit (not caused by this feedback); no pull request was created',
-        );
+        throw new JobError('verification failed on the change; no pull request was created');
       }
 
       // 5. Commit on the generated branch, push (never force), open a DRAFT PR.
-      const commit = await this.deps.repo.commitAll(
+      const commit = await commitAll(
         project.repoPath,
         `Pinpoint: apply visual feedback from ${review.reviewerName} (${review.id})`,
       );
@@ -330,7 +286,7 @@ export class Orchestrator {
       }
 
       await this.setStatus(jobId, 'pushing');
-      const pr = await this.deps.github.createDraftPullRequest({
+      const pr = await openDraftPullRequest({
         cwd: project.repoPath,
         branch,
         baseBranch: review.baseBranch,
@@ -349,7 +305,7 @@ export class Orchestrator {
       // out) avoids getting stranded on a stale generated branch from a prior job.
       // The generated branch and its commit remain locally and on the remote so
       // the pull request is unaffected.
-      await this.deps.repo.restoreBranch(project.repoPath, review.baseBranch).catch(() => undefined);
+      await restoreBranch(project.repoPath, review.baseBranch).catch(() => undefined);
     }
   }
 }

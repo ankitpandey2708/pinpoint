@@ -22,7 +22,11 @@ pull request.
 - Claude Code CLI (`claude`) authenticated — the default agent
 - A clean local Git repo with a GitHub remote
 
-Supported projects: plain HTML/CSS/JS, React, Next.js.
+Supported projects: any framework with a `dev`/`start`/`serve` script in
+`package.json` (React, Next.js, Vue, Svelte/SvelteKit, Angular, Astro, Remix, …)
+— Pinpoint runs the repo's own dev script and previews it through a proxy — plus
+plain HTML/CSS/JS sites (served directly). npm, pnpm, yarn, and bun are detected
+from the lockfile.
 
 ## Install
 

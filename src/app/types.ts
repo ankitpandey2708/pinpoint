@@ -2,7 +2,7 @@
 // data exchanged between the client overlay, the server, the orchestrator, and
 // the coding agent. Keep them free of runtime dependencies.
 
-export type Framework = 'static' | 'react' | 'next';
+export type Framework = 'static' | 'node';
 
 export type MappingConfidence = 'direct' | 'approximate' | 'unresolved';
 

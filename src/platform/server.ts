@@ -36,7 +36,7 @@ export interface ServerDeps {
   previews: PreviewRegistry;
   /** Token required for developer dashboard routes. */
   devToken: string;
-  /** Present when the CLI wires a live orchestrator; absent in some tests. */
+  /** The live job orchestrator wired by the CLI; absent leaves job routes disabled. */
   orchestrator?: OrchestratorLike;
 }
 

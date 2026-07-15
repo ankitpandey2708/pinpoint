@@ -9,8 +9,13 @@ import type {
   RepositoryInfo,
 } from '../app/types';
 
-/** Placeholder token replaced with the chosen loopback port at preview time. */
-export const PORT_PLACEHOLDER = '__PORT__';
+/**
+ * Conventional dev-script names, tried in order. These are npm-level script
+ * conventions, not framework knowledge: `npm start` is a built-in npm command,
+ * `dev` is the near-universal dev-server convention, `serve` a common alias. They
+ * require nothing from the repo and name no framework.
+ */
+const DEV_SCRIPT_NAMES = ['dev', 'start', 'serve'] as const;
 
 
 /** Normalize a GitHub remote URL (https or ssh) to `owner/repo`. */
@@ -29,24 +34,69 @@ interface PackageJson {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  packageManager?: string; // Corepack field, e.g. "pnpm@9.1.0"
 }
 
-function hasDep(pkg: PackageJson, name: string): boolean {
-  return Boolean(pkg.dependencies?.[name] ?? pkg.devDependencies?.[name]);
+/** Pick the first conventional dev-server script the repo declares. */
+function pickDevScript(scripts: Record<string, string> | undefined): string | undefined {
+  if (!scripts) return undefined;
+  return DEV_SCRIPT_NAMES.find((name) => typeof scripts[name] === 'string' && scripts[name].trim());
 }
 
+/**
+ * Decide which package-manager binary to drive. We don't maintain a whitelist:
+ * every mainstream manager exposes the same `<pm> run <script>` / `<pm> install`
+ * interface, so we just need its name. Preference order, most authoritative first:
+ *   1. the repo's declared Corepack `packageManager` field ("pnpm@9" → "pnpm"),
+ *   2. the lockfile present on disk (each manager defines its own filename),
+ *   3. npm as the universal default.
+ * A binary name is only accepted if it looks like a bare command (letters, so a
+ * malformed field can't inject args or a path); otherwise we fall through.
+ */
+function detectPackageManager(root: string, pkg: PackageJson | undefined): string {
+  const declared = pkg?.packageManager?.split('@')[0]?.trim();
+  if (declared && /^[a-z][a-z0-9-]*$/i.test(declared)) return declared;
+  if (existsSync(join(root, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (existsSync(join(root, 'yarn.lock'))) return 'yarn';
+  if (existsSync(join(root, 'bun.lockb')) || existsSync(join(root, 'bun.lock'))) return 'bun';
+  return 'npm';
+}
+
+/** `<pm> run <script>` — the invocation form every manager accepts. */
+function runScript(pm: string, script: string): Command {
+  return { command: pm, args: ['run', script] };
+}
+
+/**
+ * The manager's install command. `<pm> install` is universal; the one worthwhile
+ * special case is npm's `ci`, which is faster and reproducible when a
+ * package-lock is present.
+ */
+function installCommand(pm: string, root: string): Command {
+  if (pm === 'npm' && existsSync(join(root, 'package-lock.json'))) {
+    return { command: 'npm', args: ['ci'] };
+  }
+  return { command: pm, args: ['install'] };
+}
+
+/**
+ * A project is a `node` project (launched via its own dev script) when
+ * package.json declares one; otherwise a `static` site if it has an HTML entry.
+ * We deliberately do not identify the specific framework — the dev script is the
+ * framework-agnostic launch mechanism.
+ */
 function detectFramework(root: string, pkg: PackageJson | undefined): {
   framework: Framework;
   htmlEntry?: string;
+  devScript?: string;
 } {
-  if (pkg) {
-    if (hasDep(pkg, 'next')) return { framework: 'next' };
-    if (hasDep(pkg, 'react')) return { framework: 'react' };
-  }
+  const devScript = pickDevScript(pkg?.scripts);
+  if (devScript) return { framework: 'node', devScript };
   const htmlEntry = findHtmlEntry(root);
   if (htmlEntry) return { framework: 'static', htmlEntry };
   throw new Error(
-    'Unsupported project: expected a React/Next dependency or an HTML entry file.',
+    'Unsupported project: no runnable "dev"/"start"/"serve" script in package.json ' +
+      'and no HTML entry file (index.html) was found.',
   );
 }
 
@@ -62,31 +112,24 @@ function discoverCommands(
   root: string,
   framework: Framework,
   pkg: PackageJson | undefined,
+  devScript: string | undefined,
 ): RepositoryCommands {
   const commands: RepositoryCommands = {};
   const scripts = pkg?.scripts ?? {};
+  const pm = detectPackageManager(root, pkg);
 
-  if (pkg) {
-    const useCi = existsSync(join(root, 'package-lock.json'));
-    commands.install = { command: 'npm', args: useCi ? ['ci'] : ['install'] };
-  }
-  if (scripts.test) commands.test = { command: 'npm', args: ['test'] };
-  if (scripts.lint) commands.lint = { command: 'npm', args: ['run', 'lint'] };
-  if (scripts.typecheck) commands.typecheck = { command: 'npm', args: ['run', 'typecheck'] };
-  if (scripts.build) commands.build = { command: 'npm', args: ['run', 'build'] };
+  if (pkg) commands.install = installCommand(pm, root);
+  if (scripts.test) commands.test = runScript(pm, 'test');
+  if (scripts.lint) commands.lint = runScript(pm, 'lint');
+  if (scripts.typecheck) commands.typecheck = runScript(pm, 'typecheck');
+  if (scripts.build) commands.build = runScript(pm, 'build');
 
-  if (framework === 'next') {
-    // No --port arg: Next reads the PORT env var (set in startPreview). Many
-    // repos wrap `next dev` (e.g. `concurrently "npm run worker" "next dev"`),
-    // where an injected `-- --port` would be consumed by the wrapper and never
-    // reach Next. Env vars flow through wrappers, so PORT is robust.
-    commands.preview = { command: 'npm', args: ['run', 'dev'] };
-  } else if (framework === 'react') {
-    commands.preview = {
-      command: 'npm',
-      args: ['run', 'dev', '--', '--host', '127.0.0.1', '--port', PORT_PLACEHOLDER],
-    };
-  }
+  // Launch the repo's own dev script. No port arg is injected — startPreview
+  // sets PORT for servers that honor it and otherwise discovers the port the
+  // server chose from its startup output, so this stays framework-agnostic and
+  // survives dev-script wrappers (concurrently, custom scripts) that would eat
+  // an injected `-- --port`.
+  if (framework === 'node' && devScript) commands.preview = runScript(pm, devScript);
   // static: Pinpoint serves files itself; no preview command.
 
   return commands;
@@ -130,8 +173,8 @@ export async function inspectRepository(path: string): Promise<RepositoryInfo> {
     }
   }
 
-  const { framework, htmlEntry } = detectFramework(root, pkg);
-  const commands = discoverCommands(root, framework, pkg);
+  const { framework, htmlEntry, devScript } = detectFramework(root, pkg);
+  const commands = discoverCommands(root, framework, pkg, devScript);
 
   return {
     root,
@@ -142,13 +185,5 @@ export async function inspectRepository(path: string): Promise<RepositoryInfo> {
     framework,
     htmlEntry,
     commands,
-  };
-}
-
-/** Substitute the port placeholder in a discovered command. */
-export function withPort(command: Command, port: number): Command {
-  return {
-    command: command.command,
-    args: command.args.map((a) => (a === PORT_PLACEHOLDER ? String(port) : a)),
   };
 }

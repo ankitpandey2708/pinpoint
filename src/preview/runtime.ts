@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { get as httpGet } from 'node:http';
 import type { ChildProcess } from 'node:child_process';
 import { runProcess, spawnCommand, killProcessTree, redactSecrets } from '../platform/process';
-import { withPort } from './repository';
 import type { Project } from '../app/types';
 import type { PreviewWorkspace } from './workspace';
 
@@ -39,17 +38,38 @@ export function freePort(): Promise<number> {
   });
 }
 
-function waitForServer(url: string, timeoutMs: number): Promise<void> {
+/** Strip ANSI color codes so URLs in colorized dev-server output can be parsed. */
+// eslint-disable-next-line no-control-regex
+const ANSI = /\x1b\[[0-9;]*m/g;
+
+/** First local URL a dev server prints (e.g. Vite `Local: http://localhost:5173/`). */
+const LOCAL_URL = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)/i;
+
+/**
+ * Wait until a dev server answers, resolving to the URL that responded. Each
+ * poll prefers the port the server announced in its output (`getDetectedPort`)
+ * and falls back to the `PORT` we asked for — so servers that honor PORT (Next,
+ * CRA, Nuxt) are reached immediately, and those that pick their own port (Vite,
+ * Angular) are reached once they log it. The probe hits 127.0.0.1 to match the
+ * loopback proxy connection.
+ */
+function waitForDevServer(
+  getDetectedPort: () => number | undefined,
+  fallbackPort: number,
+  timeoutMs: number,
+): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
     const attempt = () => {
+      const port = getDetectedPort() ?? fallbackPort;
+      const url = `http://127.0.0.1:${port}`;
       const req = httpGet(url, (res) => {
         res.resume();
-        resolve();
+        resolve(url);
       });
       req.on('error', () => {
         if (Date.now() > deadline) {
-          reject(new Error(`preview server did not become ready at ${url}`));
+          reject(new Error('preview dev server did not become ready in time'));
         } else {
           setTimeout(attempt, 300);
         }
@@ -61,9 +81,10 @@ function waitForServer(url: string, timeoutMs: number): Promise<void> {
 
 /**
  * Start a preview for a workspace. Static projects are served directly by the
- * Pinpoint server, so this returns metadata only. React/Next projects install
- * dependencies and launch the detected dev server on a loopback-only ephemeral
- * port, waiting for readiness and capturing sanitized logs.
+ * Pinpoint server, so this returns metadata only. `node` projects install
+ * dependencies (if absent) and launch the repo's own dev script, discovering the
+ * loopback URL the server bound to, waiting for readiness and capturing
+ * sanitized logs.
  */
 export async function startPreview(
   workspace: PreviewWorkspace,
@@ -99,34 +120,53 @@ export async function startPreview(
   }
 
   if (!project.commands.preview) {
-    throw new Error('no preview command was detected for this framework');
+    throw new Error('no dev script was detected for this project');
   }
 
-  const port = await freePort();
-  const previewCmd = withPort(project.commands.preview, port);
-  // Also pass the port via PORT env: Next reads it, and unlike an injected
-  // --port arg it survives dev-script wrappers (concurrently, custom scripts).
+  // Reserve a free port and offer it via PORT. Servers that honor PORT (Next,
+  // CRA, Nuxt, Astro) bind here; those that ignore it (Vite, Angular) pick their
+  // own, which we recover from their startup output below. Either way we never
+  // inject a --port arg, so wrapped dev scripts (concurrently, custom wrappers)
+  // keep working.
+  const preferredPort = await freePort();
+  const previewCmd = project.commands.preview;
   const child: ChildProcess = spawnCommand(previewCmd.command, previewCmd.args, {
     cwd,
-    env: { ...process.env, PORT: String(port) },
+    // BROWSER=none stops dev servers (CRA, some Vite setups) from opening a tab
+    // on the host running Pinpoint.
+    env: { ...process.env, PORT: String(preferredPort), BROWSER: 'none' },
   });
 
-  const capture = (buf: Buffer) => logs.push(redactSecrets(buf.toString('utf8')));
+  // Sniff the port the server announces from its (de-colorized) output. First
+  // match wins and is treated as the live port for the readiness probe.
+  let detectedPort: number | undefined;
+  const capture = (buf: Buffer) => {
+    const text = buf.toString('utf8');
+    logs.push(redactSecrets(text));
+    if (detectedPort === undefined) {
+      const match = LOCAL_URL.exec(text.replace(ANSI, ''));
+      if (match) detectedPort = Number(match[1]);
+    }
+  };
   child.stdout?.on('data', capture);
   child.stderr?.on('data', capture);
 
-  // Connect over the loopback IP (matches the freePort reservation and avoids
-  // localhost's IPv6/IPv4 resolution ambiguity for the readiness probe and the
-  // proxy connection). The `Host`/`Origin` headers sent upstream are separately
-  // rewritten to `localhost` in proxy.ts, because that — not the connection
-  // address — is what a framework dev server's cross-origin protection checks.
-  const url = `http://127.0.0.1:${port}`;
   const stop = async (): Promise<void> => {
     await killProcessTree(child.pid, child);
   };
 
+  // Connect over the loopback IP (avoids localhost's IPv6/IPv4 resolution
+  // ambiguity for the readiness probe and the proxy connection). The
+  // `Host`/`Origin` headers sent upstream are separately rewritten to
+  // `localhost` in proxy.ts, because that — not the connection address — is
+  // what a framework dev server's cross-origin protection checks.
+  let url: string;
   try {
-    await waitForServer(url, options.readinessTimeoutMs ?? 60_000);
+    url = await waitForDevServer(
+      () => detectedPort,
+      preferredPort,
+      options.readinessTimeoutMs ?? 60_000,
+    );
   } catch (err) {
     await stop();
     throw err;

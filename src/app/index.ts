@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { buildProgram, startReview, realServices, type RunningReview } from './cli';
+import { buildProgram, startReview, realConfig, type RunningReview } from './cli';
 import { startTunnel, type Tunnel } from '../platform/tunnel';
 import { killAllSessions } from '../preview/cleanup';
 
@@ -16,7 +16,7 @@ async function main(): Promise<void> {
     // Pinpoint's own data (projects db, logs) lives in one stable per-user dir,
     // not the working directory — so a globally-installed `pinpoint` run from any
     // folder shares one store instead of scattering `data/` wherever it is invoked.
-    running = await startReview(opts, realServices(join(homedir(), '.pinpoint')));
+    running = await startReview(opts, realConfig(join(homedir(), '.pinpoint')));
     console.log(`\n  Pin Point is ready.\n`);
     console.log(`  Review link (local):    ${running.reviewUrl}`);
     console.log(`  Developer dashboard:    ${running.dashboardUrl}`);

@@ -1,4 +1,4 @@
-import { open, readFile, rename, mkdir, rm } from 'node:fs/promises';
+import { writeFile, readFile, rename, mkdir, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { dirname, basename, join } from 'node:path';
 
@@ -104,13 +104,10 @@ export class JsonStore<T extends { id: string }> {
       `${basename(this.filePath)}.tmp-${process.pid}-${randomUUID()}`,
     );
     const data = JSON.stringify(records, null, 2);
-    const handle = await open(tmp, 'w');
-    try {
-      await handle.writeFile(data, 'utf8');
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
+    // Temp-file-then-rename gives an atomic swap so an interrupted write can't
+    // corrupt the committed file. No fsync: this is local scratch state, not a
+    // durable database, and the atomic rename already prevents torn reads.
+    await writeFile(tmp, data, 'utf8');
     try {
       await renameWithRetry(tmp, this.filePath);
     } catch (err) {
