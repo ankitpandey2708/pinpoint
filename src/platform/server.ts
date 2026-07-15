@@ -59,8 +59,12 @@ export function createApp(deps: ServerDeps): Express {
   // app's own /api/* routes — those must proxy through to the app's dev server.
   app.use(`${PINPOINT_BASE}/api`, express.json({ limit: '2mb' }), createApiRouter(deps));
 
-  // Pinpoint-owned browser assets (overlay + dashboard scripts/styles).
+  // Pinpoint-owned browser assets (overlay + dashboard scripts/styles). Two
+  // dirs are mounted at the same prefix: the overlay bundle/css and the
+  // dashboard css/js live in separate source folders but are all served under
+  // PINPOINT_BASE. Express tries each in turn; the filenames don't overlap.
   app.use(PINPOINT_BASE, express.static(overlayDir()));
+  app.use(PINPOINT_BASE, express.static(dashboardDir()));
 
   // Instrumented review preview (static serve or framework proxy).
   app.use('/review', createReviewMiddleware(deps.previews));
