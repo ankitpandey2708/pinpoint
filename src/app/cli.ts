@@ -72,6 +72,16 @@ function samePath(a: string, b: string): boolean {
  * All external effects go through `services` so the flow is unit-testable.
  */
 export async function startReview(opts: ReviewOptions, config: ReviewConfig): Promise<RunningReview> {
+  // Refuse a nested launch: PINPOINT_PREVIEW is set on the dev server Pinpoint
+  // spawns, so if we see it, this process IS that dev server — i.e. the target
+  // project's dev script starts Pinpoint itself (a non-web project). Bail before
+  // creating any worktree, which also stops the recursion at one level.
+  if (process.env.PINPOINT_PREVIEW === '1') {
+    throw new Error(
+      "Refusing to run: Pinpoint launched this as a preview, which means the project's " +
+        'dev script starts Pinpoint itself. This project is not a web app Pinpoint can review.',
+    );
+  }
   if (!existsSync(opts.repo)) {
     throw new Error(`repository path does not exist: ${opts.repo}`);
   }

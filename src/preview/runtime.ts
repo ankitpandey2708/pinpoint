@@ -160,8 +160,10 @@ export async function startPreview(
   const child: ChildProcess = spawnCommand(previewCmd.command, previewCmd.args, {
     cwd,
     // BROWSER=none stops dev servers (CRA, some Vite setups) from opening a tab
-    // on the host running Pinpoint.
-    env: { ...process.env, PORT: String(preferredPort), BROWSER: 'none' },
+    // on the host running Pinpoint. PINPOINT_PREVIEW marks this subtree so that a
+    // dev script which is itself Pinpoint (a non-web project whose `dev` launches
+    // this CLI) refuses immediately instead of recursing (see startReview).
+    env: { ...process.env, PORT: String(preferredPort), BROWSER: 'none', PINPOINT_PREVIEW: '1' },
   });
 
   // Sniff the port the server announces from its (de-colorized) output. First
@@ -182,6 +184,21 @@ export async function startPreview(
     await killProcessTree(child.pid, child);
   };
 
+  // Fail fast if the dev command exits before it ever serves a page (a crash on
+  // startup, or a non-web script that just runs and returns) rather than waiting
+  // out the full readiness timeout for a process that is already gone.
+  const exitedEarly = new Promise<never>((_, reject) => {
+    child.once('exit', (code, signal) => {
+      const why = code !== null ? `exit code ${code}` : `signal ${signal}`;
+      const tail = logs.join('').trim().split('\n').slice(-5).join('\n');
+      reject(
+        new Error(
+          `the dev command exited (${why}) before serving a page` + (tail ? `:\n${tail}` : '.'),
+        ),
+      );
+    });
+  });
+
   // Connect over the loopback IP (avoids localhost's IPv6/IPv4 resolution
   // ambiguity for the readiness probe and the proxy connection). The
   // `Host`/`Origin` headers sent upstream are separately rewritten to
@@ -189,11 +206,10 @@ export async function startPreview(
   // what a framework dev server's cross-origin protection checks.
   let url: string;
   try {
-    url = await waitForDevServer(
-      () => detectedPort,
-      preferredPort,
-      options.readinessTimeoutMs ?? 60_000,
-    );
+    url = await Promise.race([
+      waitForDevServer(() => detectedPort, preferredPort, options.readinessTimeoutMs ?? 60_000),
+      exitedEarly,
+    ]);
   } catch (err) {
     await stop();
     throw err;
