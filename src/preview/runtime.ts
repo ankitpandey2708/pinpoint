@@ -46,12 +46,29 @@ const ANSI = /\x1b\[[0-9;]*m/g;
 const LOCAL_URL = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)/i;
 
 /**
- * Wait until a dev server answers, resolving to the URL that responded. Each
- * poll prefers the port the server announced in its output (`getDetectedPort`)
- * and falls back to the `PORT` we asked for — so servers that honor PORT (Next,
- * CRA, Nuxt) are reached immediately, and those that pick their own port (Vite,
- * Angular) are reached once they log it. The probe hits 127.0.0.1 to match the
- * loopback proxy connection.
+ * A response status meaning "a web server is up and responding" — the same set
+ * Playwright's `webServer` readiness check accepts. 2xx/3xx cover normal pages
+ * and redirects (a 3xx still proves a server is serving); 400–403 cover apps
+ * that gate `/` behind auth but are nonetheless live web apps. A 404 or 5xx is
+ * treated as not-a-web-app (or not-ready-yet) and retried until the deadline —
+ * this is what makes a non-web `dev` script (e.g. a CLI whose `/` 404s) fail
+ * cleanly instead of being mistaken for a previewable page.
+ */
+function isWebServerUp(status: number | undefined): boolean {
+  if (status === undefined) return false;
+  if (status >= 200 && status < 400) return true;
+  return status === 400 || status === 401 || status === 402 || status === 403;
+}
+
+/**
+ * Wait until a dev server serves a web response, resolving to the URL that
+ * answered. Each poll prefers the port the server announced in its output
+ * (`getDetectedPort`) and falls back to the `PORT` we asked for — so servers
+ * that honor PORT (Next, CRA, Nuxt) are reached immediately, and those that pick
+ * their own port (Vite, Angular) are reached once they log it. The probe hits
+ * 127.0.0.1 to match the loopback proxy connection. Readiness is decided by the
+ * response status (see `isWebServerUp`), not the body — inspecting the body is
+ * explicitly not how readiness should be judged.
  */
 function waitForDevServer(
   getDetectedPort: () => number | undefined,
@@ -63,17 +80,27 @@ function waitForDevServer(
     const attempt = () => {
       const port = getDetectedPort() ?? fallbackPort;
       const url = `http://127.0.0.1:${port}`;
-      const req = httpGet(url, (res) => {
-        res.resume();
-        resolve(url);
-      });
-      req.on('error', () => {
+      // A connection error or a non-web status (404/5xx) is not ready: retry
+      // until the deadline, then fail with a message that names the likely cause.
+      const notReady = () => {
         if (Date.now() > deadline) {
-          reject(new Error('preview dev server did not become ready in time'));
+          reject(
+            new Error(
+              `no web server responded at ${url}. Pinpoint previews web frontends: it ` +
+                `runs the project's dev script and expects a page served over HTTP. If this ` +
+                `project isn't a web app, that is expected.`,
+            ),
+          );
         } else {
           setTimeout(attempt, 300);
         }
+      };
+      const req = httpGet(url, (res) => {
+        res.resume();
+        if (isWebServerUp(res.statusCode)) resolve(url);
+        else notReady();
       });
+      req.on('error', notReady);
     };
     attempt();
   });
