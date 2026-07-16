@@ -72,6 +72,34 @@ export function cssSelector(el: Element): string {
   return parts.join(' > ');
 }
 
+/**
+ * Astro fallback. Astro components (`.astro`) render to static HTML with no
+ * client-side framework runtime, so `element-source` (which reads framework
+ * fibers) resolves nothing. In dev, though, `astro dev` stamps every rendered
+ * element with `data-astro-source-file` (absolute path) and `data-astro-source-loc`
+ * (`"line:col"`). We walk up from the clicked node to the nearest tagged ancestor
+ * and synthesize a source frame from it. The server anchors the absolute path to a
+ * tracked repo file (toTrackedPath), so `direct` mapping — and the fix agent — work
+ * on Astro sites too. Only present under `astro dev`; a prod build has no tags.
+ */
+function astroSourceFrom(el: Element): ResolvedSource | null {
+  const tagged =
+    typeof el.closest === 'function' ? el.closest('[data-astro-source-file]') : null;
+  if (!tagged) return null;
+  const filePath = tagged.getAttribute('data-astro-source-file');
+  if (!filePath) return null;
+  const loc = tagged.getAttribute('data-astro-source-loc') || '';
+  const [lineRaw, colRaw] = loc.split(':');
+  const line = Number.parseInt(lineRaw, 10);
+  const col = Number.parseInt(colRaw, 10);
+  return {
+    filePath,
+    lineNumber: Number.isFinite(line) ? line : null,
+    columnNumber: Number.isFinite(col) ? col : null,
+    componentName: null,
+  };
+}
+
 function normalizeFrame(frame: unknown): ResolvedSource | null {
   if (!frame || typeof frame !== 'object') return null;
   const f = frame as Record<string, unknown>;
@@ -109,7 +137,10 @@ export async function resolveTarget(el: Element): Promise<EnrichedTarget> {
 
   const rawStack = Array.isArray(info?.stack) ? (info!.stack as unknown[]) : [];
   const stack = rawStack.map(normalizeFrame).filter((s): s is ResolvedSource => s !== null);
-  const source = normalizeFrame(info?.source) ?? stack[0] ?? null;
+  // Framework fibers first (React/Vue/Svelte/…); fall back to Astro's dev-mode
+  // source attributes when element-source resolved nothing (Astro static HTML).
+  const source = normalizeFrame(info?.source) ?? stack[0] ?? astroSourceFrom(el) ?? null;
+  if (stack.length === 0 && source) stack.push(source);
 
   const parentText = el.parentElement ? el.parentElement.textContent || '' : '';
   return {
