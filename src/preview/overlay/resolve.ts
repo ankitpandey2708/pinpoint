@@ -77,18 +77,26 @@ export function cssSelector(el: Element): string {
  * client-side framework runtime, so `element-source` (which reads framework
  * fibers) resolves nothing. In dev, though, `astro dev` stamps every rendered
  * element with `data-astro-source-file` (absolute path) and `data-astro-source-loc`
- * (`"line:col"`). We walk up from the clicked node to the nearest tagged ancestor
+ * (`"line:col"`).
+ *
+ * We cannot read those attributes directly: Astro's dev-toolbar audit app runs
+ * on load and `removeAttribute`s every `data-astro-source-*` (moving them into an
+ * internal WeakMap), so by the time a reviewer clicks, the live DOM carries none
+ * of them. Instead, the preview proxy copies each attribute into a
+ * Pinpoint-namespaced twin (`data-pinpoint-src-file` / `-loc`) before serving the
+ * HTML — Astro's audit only queries/strips its own `data-astro-source-*`, so our
+ * twins survive. We walk up from the clicked node to the nearest twinned ancestor
  * and synthesize a source frame from it. The server anchors the absolute path to a
  * tracked repo file (toTrackedPath), so `direct` mapping — and the fix agent — work
  * on Astro sites too. Only present under `astro dev`; a prod build has no tags.
  */
 function astroSourceFrom(el: Element): ResolvedSource | null {
   const tagged =
-    typeof el.closest === 'function' ? el.closest('[data-astro-source-file]') : null;
+    typeof el.closest === 'function' ? el.closest('[data-pinpoint-src-file]') : null;
   if (!tagged) return null;
-  const filePath = tagged.getAttribute('data-astro-source-file');
+  const filePath = tagged.getAttribute('data-pinpoint-src-file');
   if (!filePath) return null;
-  const loc = tagged.getAttribute('data-astro-source-loc') || '';
+  const loc = tagged.getAttribute('data-pinpoint-src-loc') || '';
   const [lineRaw, colRaw] = loc.split(':');
   const line = Number.parseInt(lineRaw, 10);
   const col = Number.parseInt(colRaw, 10);
